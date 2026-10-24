@@ -1,6 +1,7 @@
 """Shared helpers for the test_forms_* modules (no tests here). Templates are inserted with the
 models directly: the templates API is U5's and is tested there."""
 
+import json
 import uuid
 
 from sqlalchemy import func, select
@@ -104,3 +105,9 @@ def update(client, form: dict, data=None, reference=None):
 def journal(db) -> list[ActivityLog]:
     db.expire_all()
     return list(db.scalars(select(ActivityLog).order_by(ActivityLog.id)))
+
+
+def raw(client, method: str, url: str, body: dict):
+    """JSON sent with \\u escapes: httpx's json= cannot encode a lone surrogate."""
+    headers = {"content-type": "application/json"}
+    return client.request(method, url, content=json.dumps(body), headers=headers)

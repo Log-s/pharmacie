@@ -22,6 +22,7 @@ from tests.test_forms_common import (
     create,
     created,
     publish,
+    raw,
     uid,
     update,
     valid_data,
@@ -87,9 +88,58 @@ def test_valid_data_is_normalized(db, client, profile):
     assert stored_data(db, form) == form["data"]
 
 
-def test_empty_values_are_not_stored(db, client):
-    data = valid_data(**{RESULT: None, CHECKS: [], AUTHOR: None})
-    assert created(client, publish(db), data)["data"] == valid_data()
+EMPTIES = [None, "", []]
+
+
+@pytest.mark.parametrize("empty", EMPTIES)
+def test_empty_values_are_not_stored(db, client, empty):
+    version = publish(db)
+    data = valid_data(**{RESULT: empty, CHECKS: empty, AUTHOR: empty})
+    assert created(client, version, data)["data"] == valid_data()
+    data = valid_data(**{CHECKS: [CB], WHEN: empty})  # visible optional date child
+    assert created(client, version, data)["data"] == valid_data(**{CHECKS: [CB]})
+
+
+@pytest.mark.parametrize("empty", EMPTIES)
+def test_empty_required_values_are_missing(db, client, empty):
+    """Every value node type, required and visible: an empty value is « champ obligatoire »."""
+    nodes = [
+        {"id": uid(), "type": t, "label": t, "required": True}
+        | ({"options": [{"id": uid(), "label": "Oui"}]} if t.endswith("group") else {})
+        for t in ("text", "date", "author", "radio_group", "checkbox_group")
+    ]
+    response = create(client, publish(db, nodes), {n["id"]: empty for n in nodes})
+    assert response.status_code == 422, response.text
+    detail = response.json()["detail"]
+    assert [e["loc"][-1] for e in detail] == [n["id"] for n in nodes]
+    assert all(e["msg"].endswith("champ obligatoire.") for e in detail)
+
+
+@pytest.mark.parametrize("bad", ["a\x00b", "a\ud800b", "\udfff"])
+@pytest.mark.parametrize(
+    ("node", "value", "message"),
+    [
+        (TITLE, "{}", "caractère non autorisé."),
+        (DATE, "{}", "caractère non autorisé."),
+        (AUTHOR, "{}", "caractère non autorisé."),
+        (RESULT, "{}", "caractère non autorisé."),
+        (CHECKS, ["{}"], "option inconnue."),
+    ],
+)
+def test_unstorable_characters_are_422_naming_the_field(db, client, bad, node, value, message):
+    """PostgreSQL refuses U+0000 and UTF-8 lone surrogates: 422, never a 500 from the database."""
+    value = [v.format(bad) for v in value] if isinstance(value, list) else value.format(bad)
+    version = publish(db)
+    body = {"template_version_id": str(version.id), "data": valid_data(**{node: value})}
+    response = raw(client, "POST", "/api/forms", body)
+    assert response.status_code == 422, response.text
+    [error] = response.json()["detail"]
+    assert error["loc"] == ["body", "data", node]
+    assert error["msg"].endswith(message)
+    form = created(client, version)
+    body = {"reference": form["reference"], "data": valid_data(**{node: value})}
+    assert raw(client, "PUT", f"/api/forms/{form['id']}", body).status_code == 422
+    assert db.scalar(select(Form.data)) == valid_data()
 
 
 def test_hidden_children_are_stripped_and_not_validated(db, client):

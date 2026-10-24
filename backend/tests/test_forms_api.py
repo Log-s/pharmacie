@@ -63,6 +63,20 @@ def test_pagination_reports_the_total(world):
     assert (page2["total"], len(page2["items"])) == (3, 1)
     assert client.get("/api/forms", params={"page": 0}).status_code == 422
     assert client.get("/api/forms", params={"page_size": 101}).status_code == 422
+    assert client.get("/api/forms", params={"page": 100_000}).json()["items"] == []
+    for page in (100_001, 2**62, 10**18, 10**30):
+        assert client.get("/api/forms", params={"page": page}).status_code == 422, page
+
+
+@pytest.mark.parametrize("param", ["q", "reference"])
+def test_unstorable_characters_in_text_filters_are_422(world, param):
+    """PostgreSQL refuses U+0000: 422 naming the parameter, never a 500 from the database."""
+    response = world["ca"].get("/api/forms", params={param: "Lot\x00"})
+    assert response.status_code == 422, response.text
+    [error] = response.json()["detail"]
+    assert (error["loc"], error["msg"]) == (["query", param], "Caractère non autorisé.")
+    # A percent-encoded surrogate is not UTF-8: the server decodes it to U+FFFD, a plain search.
+    assert world["ca"].get(f"/api/forms?{param}=%ED%A0%80").json()["total"] == 0
 
 
 def test_get_is_readable_by_everyone_with_can_edit_for_the_caller(world, admin_client, user_client):

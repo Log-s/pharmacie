@@ -8,7 +8,7 @@ import pytest
 from app.config.reference import format_reference
 from app.db import SessionLocal
 from app.services import references
-from tests.test_forms_common import create, created, publish, update
+from tests.test_forms_common import create, created, publish, raw, update
 
 TAKEN = "Cette référence est déjà utilisée par une autre fiche."
 
@@ -51,6 +51,19 @@ def test_invalid_format_is_422(db, client, reference):
     assert "Référence invalide" in response.json()["detail"][0]["msg"]
     form = created(client, version)
     assert update(client, form, reference=reference or " ").status_code == 422
+
+
+@pytest.mark.parametrize("reference", ["FIXME-000001\x00", "FIXME-\x00000001", "FIXME-00000\ud800"])
+def test_unstorable_reference_is_422(db, client, reference):
+    version = publish(db)
+    body = {"template_version_id": str(version.id), "reference": reference}
+    response = raw(client, "POST", "/api/forms", body)
+    assert response.status_code == 422, response.text
+    [error] = response.json()["detail"]
+    assert (error["loc"], "Référence invalide" in error["msg"]) == (["body", "reference"], True)
+    form = created(client, version)
+    response = raw(client, "PUT", f"/api/forms/{form['id']}", {"reference": reference})
+    assert response.status_code == 422, response.text
 
 
 def test_duplicate_is_409_on_create_and_update(db, client):
