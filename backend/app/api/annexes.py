@@ -5,13 +5,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
-from pydantic import ValidationError
+from pydantic import AfterValidator, ValidationError
 from sqlalchemy import select
 from starlette.datastructures import UploadFile as UploadFile
 
 from app.api.deps import Auth, CurrentAuth, Db, get_request_ctx, require_admin
 from app.models import Annex
-from app.schemas.annexes import AnnexOut, AnnexUpdate, AnnexUpload
+from app.schemas.annexes import AnnexOut, AnnexUpdate, AnnexUpload, no_unstorable
 from app.services import activity, annexes
 from app.services.activity import RequestCtx
 from app.settings import settings
@@ -31,7 +31,9 @@ def _get(db: Db, annex_id: uuid.UUID) -> Annex:
 
 @router.get("/annexes")
 def list_annexes(
-    _auth: CurrentAuth, db: Db, q: Annotated[str | None, Query(max_length=200)] = None
+    _auth: CurrentAuth,
+    db: Db,
+    q: Annotated[str | None, Query(max_length=200), AfterValidator(no_unstorable)] = None,
 ) -> list[AnnexOut]:
     """Both roles. `q`: case-insensitive match on title or excerpt."""
     query = select(Annex).order_by(Annex.title, Annex.created_at)
@@ -77,8 +79,11 @@ async def read_upload(
         file = form.get("file")
         if not isinstance(file, UploadFile):
             raise HTTPException(422, "Le fichier de l'annexe est obligatoire.")
+        title = form.get("title")
+        if isinstance(title, str) and not title.strip():
+            title = None  # an untouched browser input sends "": same as absent
         try:
-            fields = AnnexUpload.model_validate({"title": form.get("title")})
+            fields = AnnexUpload.model_validate({"title": title})
         except ValidationError as exc:
             raise RequestValidationError(exc.errors()) from exc
         yield file, fields

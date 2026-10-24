@@ -12,6 +12,7 @@ from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from sqlalchemy import select
 
 from app.models import ActivityLog, Annex, Template, TemplateVersion
+from app.services import annexes
 from app.settings import settings
 
 
@@ -184,6 +185,42 @@ def test_nul_in_title_or_excerpt_is_rejected_on_edit(admin_client, db):
     db.refresh(row)
     assert (row.title, row.excerpt) == ("Notice", "Dosage")
     assert actions(db) == ["annex_uploaded"]
+
+
+def test_empty_or_blank_title_defaults_to_the_file_name(admin_client):
+    for blank in ("", "   "):
+        response = upload(admin_client, make_pdf(), "Guide rapide.pdf", title=blank)
+        assert response.status_code == 201, blank
+        assert response.json()["title"] == "Guide rapide"
+
+
+def test_excerpt_helper_drops_lone_surrogates_and_controls():
+    text = annexes.storable_excerpt("A\ud835 B\x00 \x01C\n  D")
+    assert text == "A B C D"
+    text.encode("utf-8")  # storable
+
+
+def test_filename_with_a_lone_surrogate_is_cleaned():
+    name = annexes.clean_filename("no\ud835tice.pdf")
+    assert name == "notice.pdf"
+    annexes.content_disposition(name)  # does not raise
+
+
+def test_search_with_nul_is_a_422_not_a_500(admin_client, user_client):
+    for client in (admin_client, user_client):
+        response = client.get("/api/annexes", params={"q": "a\x00b"})
+        assert response.status_code == 422
+        assert "nul" in response.json()["detail"][0]["msg"]
+
+
+def test_json_lone_surrogate_is_a_422_on_edit(admin_client):
+    annex = make_annex(admin_client)
+    response = admin_client.patch(
+        f"/api/annexes/{annex['id']}",
+        content=b'{"excerpt": "a\\ud835b"}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 422
 
 
 def test_missing_file_part_is_a_422(admin_client):

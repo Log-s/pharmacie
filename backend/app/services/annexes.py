@@ -29,7 +29,8 @@ def too_big_message() -> str:
 
 def clean_filename(raw: str | None) -> str:
     """Last path component, no control characters, at most 255 chars (keeping the extension)."""
-    name = re.sub(r"[\x00-\x1f\x7f]", "", re.split(r"[\\/]", raw or "")[-1]).strip()
+    last = re.split(r"[\\/]", raw or "")[-1].encode("utf-8", "ignore").decode()  # drops lone surrogates
+    name = re.sub(r"[\x00-\x1f\x7f]", "", last).strip()
     return name if len(name) <= 255 else name[:251] + name[-4:]
 
 
@@ -57,10 +58,16 @@ def extract_excerpt(path: Path) -> str:
                 parts.append(page.extract_text() or "")
                 if sum(map(len, parts)) >= EXCERPT_CHARS * 2:
                     break
-        text = CONTROL_CHARS.sub("", " ".join(parts))  # NUL would make the INSERT fail
-        return " ".join(text.split())[:EXCERPT_CHARS]
     except Exception:  # noqa: BLE001  # pypdf raises many types on bad input
         return ""
+    return storable_excerpt(" ".join(parts))
+
+
+def storable_excerpt(raw: str) -> str:
+    """Whitespace-normalised, cut to EXCERPT_CHARS, and always storable: NUL and the other C0
+    controls would fail the INSERT, a lone surrogate would fail the UTF-8 encoding."""
+    text = CONTROL_CHARS.sub("", raw.encode("utf-8", "ignore").decode())
+    return " ".join(text.split())[:EXCERPT_CHARS]
 
 
 def store_pdf(source: BinaryIO, filename: str | None) -> tuple[uuid.UUID, str, int, str]:
