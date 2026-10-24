@@ -1,6 +1,7 @@
 import pytest
 import weasyprint
 from alembic.config import Config
+from fastapi.testclient import TestClient
 from sqlalchemy import inspect, text
 from sqlalchemy.exc import DBAPIError
 
@@ -8,6 +9,8 @@ from alembic import command
 from app.cli import ALEMBIC_INI
 from app.config.reference import format_reference, is_valid_reference
 from app.db import engine
+from app.main import create_app
+from app.settings import settings
 
 SPEC_TABLES = {
     "accounts",
@@ -20,6 +23,13 @@ SPEC_TABLES = {
     "activity_log",
     "sessions",
 }
+
+
+@pytest.mark.parametrize("path", ["/api/docs", "/api/redoc", "/api/openapi.json"])
+def test_api_docs_are_off_by_default_and_opt_in(client, monkeypatch, path):
+    assert client.get(path).status_code == 404
+    monkeypatch.setattr(settings, "expose_api_docs", True)
+    assert TestClient(create_app()).get(path).status_code == 200
 
 
 def test_health(client):
