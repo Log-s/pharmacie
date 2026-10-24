@@ -164,6 +164,9 @@ def test_user_text_cannot_inject_remote_resources(db, make_client, profile_facto
         "https://example.com/a.css",
         "file:///etc/passwd",
         "data:text/css,a{}",
+        f"file://{render.PDF_DIR}/%2e%2e/x",
+        f"file://{render.PDF_DIR}/%2E%2E%2Fx",
+        f"file://host/{render.PDF_DIR}/form.css",
     ],
 )
 def test_fetcher_refuses_outside_resources(url, monkeypatch):

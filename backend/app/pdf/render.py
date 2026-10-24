@@ -5,6 +5,8 @@ import uuid
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
+from urllib.request import url2pathname
 
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import select
@@ -34,8 +36,10 @@ class LocalFetcher(URLFetcher):
     """Renders offline: only files under app/pdf/ can be fetched (http, https, data: refused)."""
 
     def fetch(self, url, headers=None):
-        path = Path(url.removeprefix("file://")) if url.startswith("file:///") else None
-        if path is None or not path.resolve().is_relative_to(PDF_DIR):
+        parts = urlsplit(url)
+        # Decode like urllib's FileHandler will, so %2e%2e cannot slip past the guard.
+        path = Path(url2pathname(parts.path))
+        if parts.scheme != "file" or parts.netloc or not path.resolve().is_relative_to(PDF_DIR):
             raise ValueError(f"Ressource externe refusée : {url}")
         return super().fetch(url, headers)
 
