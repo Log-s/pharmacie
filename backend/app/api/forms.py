@@ -6,6 +6,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy import select
 
 from app.api.deps import (
@@ -16,6 +17,7 @@ from app.api.deps import (
     require_form_owner_or_admin,
 )
 from app.models import Form, Profile
+from app.pdf import render
 from app.schemas.forms import (
     FormCreate,
     FormOut,
@@ -24,8 +26,8 @@ from app.schemas.forms import (
     NextReference,
     SearchText,
 )
+from app.services import activity, references
 from app.services import forms as service
-from app.services import references
 from app.services.activity import RequestCtx
 
 # Mounted under /api in app/main.py; declare full paths below it (e.g. "/forms/...").
@@ -79,6 +81,19 @@ def create_form(
 @router.get("/forms/{form_id}")
 def get_form(form_id: uuid.UUID, auth: CurrentAuth, db: Db) -> FormOut:
     return service.get(db, auth, form_id)
+
+
+@router.get("/forms/{form_id}/pdf")
+def export_pdf(form_id: uuid.UUID, auth: CurrentAuth, ctx: Ctx, db: Db) -> Response:
+    form = service.get(db, auth, form_id)
+    pdf = render.render(db, form)
+    activity.log(db, ctx, "form_export", "form", form.id, {"reference": form.reference})
+    db.commit()
+    return Response(
+        pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{form.reference}.pdf"'},
+    )
 
 
 @router.put("/forms/{form_id}")

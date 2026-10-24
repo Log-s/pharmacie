@@ -1,0 +1,23 @@
+@page {
+  size: A4;
+  margin: 20mm 15mm 22mm;
+  @bottom-left { content: "Référence : " string(ref); font-size: 9pt; color: #444; }
+  @bottom-right { content: "Page " counter(page) " / " counter(pages); font-size: 9pt; color: #444; }
+}
+body { font-family: "Liberation Sans", "DejaVu Sans", sans-serif; font-size: 10pt; color: #111; }
+header { border-bottom: 1.5pt solid #111; margin-bottom: 8mm; }
+h1 { font-size: 16pt; margin: 0 0 3mm; }
+h1 small { font-size: 9pt; font-weight: normal; color: #444; }
+dl { display: grid; grid-template-columns: max-content 1fr; gap: 1mm 4mm; margin: 0 0 4mm; }
+dt { font-weight: bold; }
+dd { margin: 0; }
+.ref { string-set: ref content(); }
+h2 { font-size: 12pt; margin: 6mm 0 2mm; padding-bottom: 1mm; border-bottom: 0.5pt solid #888; break-after: avoid; }
+h2 + section h2 { font-size: 11pt; }
+.field { margin: 0 0 3mm; break-inside: avoid; }
+.label { font-weight: bold; break-after: avoid; }
+.annex { font-size: 8.5pt; color: #444; font-style: italic; }
+ul { margin: 1mm 0 0; padding-left: 5mm; }
+li { margin: 0 0 1mm; }
+.answer { white-space: pre-wrap; overflow-wrap: anywhere; }
+li .field { margin: 1.5mm 0 0; padding-left: 3mm; }
