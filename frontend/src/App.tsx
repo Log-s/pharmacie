@@ -17,15 +17,22 @@ export default function App() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>
-            <h1>Fiches de la pharmacie</h1>
+            <h1 className="text-balance">Fiches de la pharmacie</h1>
           </CardTitle>
           <CardDescription>L’application est en cours de construction.</CardDescription>
         </CardHeader>
-        <CardContent className="flex items-center gap-2" aria-live="polite">
-          <span>État du serveur :</span>
-          {health.isPending && <Badge variant="secondary">vérification…</Badge>}
-          {health.isSuccess && <Badge>disponible</Badge>}
-          {health.isError && <Badge variant="destructive">injoignable</Badge>}
+        <CardContent className="flex flex-col gap-2" aria-live="polite">
+          <p className="flex items-center gap-2">
+            <span>État du serveur :</span>
+            {health.isPending && <Badge variant="secondary">vérification…</Badge>}
+            {health.isSuccess && <Badge>disponible</Badge>}
+            {health.isError && <Badge variant="destructive">injoignable</Badge>}
+          </p>
+          {health.isError && (
+            <p className="text-sm text-muted-foreground">
+              Vérifiez que le service api est démarré, puis rechargez la page.
+            </p>
+          )}
         </CardContent>
       </Card>
     </main>
