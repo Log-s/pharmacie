@@ -134,9 +134,10 @@ def test_journal_has_no_write_route():
 
 
 @pytest.mark.parametrize(
-    "sql", ["UPDATE activity_log SET action = 'x'", "DELETE FROM activity_log"]
+    "sql",
+    ["UPDATE activity_log SET action = 'x'", "DELETE FROM activity_log", "TRUNCATE activity_log"],
 )
-def test_trigger_rejects_update_and_delete(db, sql):
+def test_trigger_rejects_update_delete_and_truncate(db, sql):
     db.add(ActivityLog(action="login_success"))
     db.commit()
     with pytest.raises(DBAPIError, match="append-only"):
