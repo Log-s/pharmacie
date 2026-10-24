@@ -66,6 +66,7 @@ test('admin : connexion, un mauvais mot de passe est refusé', async () => {
   await login(admin, 'Administrateur', ADMIN_PASSWORD)
   await expect(admin).toHaveURL(/\/fiches$/)
   await expect(admin.getByText('Administrateur', { exact: true })).toBeVisible()
+  await expect(admin).toHaveTitle('Fiches – Fiches de la pharmacie')
 })
 
 test('admin : crée deux profils', async () => {

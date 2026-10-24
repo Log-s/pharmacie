@@ -22,7 +22,25 @@ Le certificat est émis par la CA interne de Caddy : le navigateur affiche un av
 que la racine (`docker compose exec proxy cat /data/caddy/pki/authorities/local/root.crt`) n'est
 pas approuvée.
 
-Avec podman : `make COMPOSE=podman-compose ENGINE=podman up`.
+Avec podman : `make COMPOSE=podman-compose ENGINE=podman up`, puis
+`make COMPOSE=podman-compose ENGINE=podman install`. `make smoke-podman` vérifie ce parcours sur un
+projet jetable (voir plus bas).
+
+## Commandes `make`
+
+| Cible | Rôle |
+|---|---|
+| `secrets` | crée `secrets/db_password` et `secrets/secret_key` s'ils manquent |
+| `up` / `down` | construit et démarre la pile (proxy, api, db) / l'arrête |
+| `install` | crée les comptes admin et utilisateur (interactif, une seule fois) |
+| `migrate` | applique les migrations Alembic |
+| `backup` / `restore` | sauvegarde et restauration, voir [`docs/backup-restore.md`](docs/backup-restore.md) |
+| `test` | pytest (Postgres jetable) + vitest |
+| `check` | `test` + ruff, lint et typecheck du front |
+| `e2e` | scénario Playwright (spécification §11) sur une pile de production jetable |
+| `smoke-podman` | `podman-compose up`, santé, `install` non interactif, sur un projet jetable |
+| `audit` | `pip-audit`, `npm audit`, Trivy |
+| `dev` | db + api (rechargement) + Vite, pour le développement |
 
 ## Développement
 
@@ -37,14 +55,33 @@ make migrate   # applique les migrations Alembic sur la pile
 `make dev` sert le front sur http://localhost:5173 et l'api sur http://127.0.0.1:8000.
 `Ctrl+C` arrête le serveur Vite, le conteneur api de dev et la base.
 
-`make e2e` (U13) n'est pas encore implémenté. Sauvegarde et restauration :
-[`docs/backup-restore.md`](docs/backup-restore.md) (`make backup`, `make restore`).
+## Tests de bout en bout
+
+`make e2e` ne demande rien : il lance `scripts/e2e.sh`, qui monte la pile de production
+(`compose.yaml`, Caddy en HTTPS) sous un nom de projet unique (`pharmacie-e2e-<pid>`) avec des
+volumes neufs, des secrets et des mots de passe générés dans un dossier temporaire, exécute
+`python -m app.cli install` sans interaction, puis déroule Playwright (Chromium, image
+`mcr.microsoft.com/playwright:v1.64.1-noble`, `--network host`) sur `https://localhost:18443`.
+La pile, ses volumes et ses images sont supprimés à la fin, même en cas d'échec. Prérequis :
+Docker et accès à l'image Playwright.
+
+Le scénario (`frontend/e2e/scenario.spec.ts`) suit la spécification §11 : connexion admin, profils,
+annexe PDF (générée pendant le test), template avec sous-champ conditionnel et annexe, puis côté
+utilisateur le choix du profil, une fiche, l'export PDF, l'infobulle de l'annexe, le changement de
+profil (lecture seule), la modification et la suppression par l'admin, et la réinitialisation du
+mot de passe utilisateur. Rapport HTML : `frontend/playwright-report/index.html`.
+
+`make smoke-podman` fait le même montage avec `podman-compose` sur le port 18444, vérifie
+`GET /api/health` et l'`install` non interactif, puis démonte tout. Les ports d'essai se changent
+avec `HTTPS_PORT`.
+
+Sauvegarde et restauration : [`docs/backup-restore.md`](docs/backup-restore.md).
 
 ## Ports et variables
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `HTTPS_PORT` | `8443` | port HTTPS publié par le proxy |
+| `HTTPS_PORT` | `8443` | port HTTPS publié par le proxy (`make e2e` : `18443`, `make smoke-podman` : `18444`) |
 | `SITE_HOST` | `localhost` | nom d'hôte du certificat Caddy |
 | `API_DEV_PORT` | `8000` | port local de l'api pour `make dev` |
 | `VITE_PORT` | `5173` | port du serveur Vite pour `make dev` |
