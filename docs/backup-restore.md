@@ -41,15 +41,28 @@ La restauration **remplace** la base et les annexes de la pile ciblée.
    make restore DB=backups/db-20261024T144151Z.dump ANNEXES=backups/annexes-20261024T144151Z.tar.gz
    ```
 
-   Le script commence par tout vérifier, sans rien arrêter : les deux fichiers existent et ne sont
-   pas vides, l'archive des annexes est une `tar.gz` lisible, le dump est lisible en entier par
-   `pg_restore`. Un fichier faux, tronqué ou des arguments inversés sont refusés (code 2) et la pile
-   n'est pas touchée. Il demande ensuite de taper `oui` ; sans terminal, ajoutez `YES=--yes`. Puis il
-   arrête `proxy` et `api`, recrée le schéma `public` et charge le dump dans **une seule
-   transaction** (en cas d'erreur, la base reste telle qu'elle était), dépose les annexes dans un
-   dossier temporaire du volume avant de remplacer les fichiers en place, puis relance toute la pile
-   (l'api applique les migrations manquantes au démarrage). Si la restauration échoue après l'arrêt,
-   la base est intacte mais la pile reste arrêtée : corrigez la cause puis `make up`.
+   Le script procède dans cet ordre, et chaque étape dit ce qu'il advient de la base et des annexes
+   si elle échoue :
+
+   1. **Vérification, sans rien arrêter** : les deux fichiers existent et ne sont pas vides,
+      l'archive des annexes est une `tar.gz` lisible, le dump est lisible en entier par
+      `pg_restore`. Un fichier faux, tronqué ou des arguments inversés sont refusés (code 2) : base,
+      annexes et pile intactes, la pile continue de tourner. Il demande ensuite de taper `oui` ;
+      sans terminal, ajoutez `YES=--yes`.
+   2. **Arrêt de `proxy` et `api`**, puis **dépôt des annexes** dans un dossier temporaire `.new`
+      du volume (c'est l'étape qui peut échouer faute de place ou d'accès en écriture). Échec
+      (code 1) : `.new` est supprimé, base et annexes intactes, la pile reste arrêtée.
+   3. **Chargement de la base** : le schéma `public` est recréé et le dump chargé dans **une seule
+      transaction**. Échec (code 1) : la transaction est annulée, `.new` est supprimé, base et
+      annexes intactes, la pile reste arrêtée.
+   4. **Bascule des annexes** : uniquement des renommages dans le volume (les anciens fichiers vont
+      dans `.old`, les nouveaux prennent leur place, puis `.old` est supprimé), puis relance de
+      toute la pile (l'api applique les migrations manquantes au démarrage). Cette étape n'écrit
+      plus de données et n'est pas censée échouer ; si elle échouait, la base est déjà restaurée :
+      relancez la même commande `make restore`, elle est rejouable.
+
+   Après un échec aux étapes 2 ou 3, corrigez la cause (place disque, droits) puis relancez
+   `make restore` ou, pour reprendre sans restaurer, `make up`.
 3. Vérifiez :
 
    ```sh
@@ -70,8 +83,11 @@ pile neuve `u9-restore` (volumes vierges, `HTTPS_PORT=19444`) : `accounts = 2`, 
 mot de passe d'origine et le journal restauré est lisible via `/api/journal`. Un `UPDATE` sur
 `activity_log` reste refusé après restauration (trigger restauré avec le schéma).
 
-Contrôle des refus (pile `u9` remplie, `test-results/U9-C3b.log`) : dump tronqué, archive tronquée,
-arguments inversés, fichier vide, fichier absent, un seul argument : tous refusés avant tout arrêt ;
-conteneurs, heures de démarrage, comptes (2/1/1) et `sha256` des annexes inchangés. Restauration
-par-dessus une pile déjà modifiée (table et profil en trop, fichiers d'annexes en trop) : la pile
-retrouve exactement l'état de la sauvegarde.
+Contrôle des refus (pile `u9` remplie, `test-results/U9-C3c.log`) : dump tronqué et arguments
+inversés sont refusés avant tout arrêt ; conteneurs, comptes (2/1/1) et `sha256` des annexes
+inchangés. Échecs simulés à l'étape 2, pile `u9` volontairement différente de la sauvegarde (profil
+et fichier d'annexe en trop) : archive valide pour `tar -tzf` mais non extractible, puis volume des
+annexes en lecture seule. Dans les deux cas : code 1, `.new` absent, le profil et le fichier en trop
+sont toujours là (ni la base ni les annexes n'ont été touchées), `make up` relance la pile.
+Restauration par-dessus une pile déjà modifiée (table et profil en trop, fichiers d'annexes en
+trop) : la pile retrouve exactement l'état de la sauvegarde.

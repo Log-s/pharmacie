@@ -26,18 +26,21 @@ if [ -z "$yes" ]; then
   [ "$answer" = "oui" ] || { echo "annulé" >&2; exit 1; }
 fi
 
+# Order matters: everything that can fail for lack of space or I/O (unpacking the annexes) happens
+# BEFORE the database transaction commits; after it, only same-volume renames remain.
+vol() { "${compose[@]}" run --rm --no-deps -T --entrypoint sh api -c "set -e; cd /data/annexes; $1" < "${2:-/dev/null}"; }
 "${compose[@]}" stop proxy api # nobody writes during the restore
+# One-off api container (same volume, uid 10001). The old files stay where they are until the swap.
+vol 'rm -rf .new .old; mkdir .new .old; tar -xzf - -C .new' "$annexes" \
+  || { vol 'rm -rf .new .old' || true; echo "annexes non dépilées : base et annexes inchangées, pile arrêtée" >&2; exit 1; }
 # One transaction: the schema is dropped and rebuilt only if the whole dump loads, else nothing changes.
 "${compose[@]}" exec -T db sh -c 'set -o pipefail
   { echo "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"; pg_restore --no-owner -f -; } |
-    psql -v ON_ERROR_STOP=1 --single-transaction -q -U pharmacie pharmacie' < "$dump"
-# One-off api container (same volume, uid 10001): unpack aside first, then swap the entries, so the
-# archive is known good before the current files are touched (the old ones stay in .old until the end).
-"${compose[@]}" run --rm --no-deps -T --entrypoint sh api -c 'set -e; cd /data/annexes
-  rm -rf .new .old; mkdir .new .old
-  tar -xzf - -C .new || { rm -rf .new; exit 1; }
-  find . -mindepth 1 -maxdepth 1 ! -name .new ! -name .old -exec mv {} .old/ \;
+    psql -v ON_ERROR_STOP=1 --single-transaction -q -U pharmacie pharmacie' < "$dump" \
+  || { vol 'rm -rf .new .old' || true; echo "chargement de la base refusé : base et annexes inchangées, pile arrêtée" >&2; exit 1; }
+# Swap: renames only (no data written). Old entries go to .old, new ones come in, then both are dropped.
+vol 'find . -mindepth 1 -maxdepth 1 ! -name .new ! -name .old -exec mv {} .old/ \;
   find .new -mindepth 1 -maxdepth 1 -exec mv {} . \;
-  rm -rf .new .old' < "$annexes"
+  rm -rf .new .old'
 "${compose[@]}" up -d
 echo "restauration terminée"
