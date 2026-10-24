@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
+from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy import select
@@ -29,6 +30,7 @@ PDF_DIR = Path(__file__).resolve().parent
 # User text is escaped: it can never inject markup (or a remote <img>/@import) into the page.
 ENV = Environment(loader=FileSystemLoader(PDF_DIR), autoescape=True)
 EMPTY = "—"
+PARIS = ZoneInfo("Europe/Paris")
 DELETED_ANNEX = "Annexe supprimée"
 
 
@@ -93,7 +95,7 @@ def render(db: Session, form: FormOut) -> bytes:
         css=(PDF_DIR / "form.css").read_text(encoding="utf-8"),
         form=form,
         author=names[str(form.owner.id)],
-        day=form.created_at.strftime("%d/%m/%Y"),
+        day=form.created_at.astimezone(PARIS).strftime("%d/%m/%Y"),
         items=_items(tree.nodes, form.data, names, titles),
     )
     return HTML(string=html, url_fetcher=LocalFetcher()).write_pdf()

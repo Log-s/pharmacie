@@ -410,8 +410,8 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
 - Activity: `form_export` (target `form`/<form id>, details `reference`), committed with the response.
 - Code: `app/pdf/render.py` (`render(db, form: FormOut) -> bytes`), `form.html` (Jinja2, autoescape on),
   `form.css` (inlined into the page).
-- Content: header (template name + version, Référence, Auteur = form owner, Date = creation day in UTC,
-  `dd/mm/yyyy`); each category is a section; each field prints its label and answer(s). Only checked
+- Content: header (template name + version, Référence, « Profil propriétaire » = form owner, « Créée le » = creation day in
+  Europe/Paris, `dd/mm/yyyy`); each category is a section; each field prints its label and answer(s). Only checked
   options are printed, with their visible children nested (the `data` already holds visible nodes only).
   Unanswered fields print « — ». Author fields print the profile name (« (profil supprimé) » when
   archived). The `reference` node is not printed again (header). Annex ref: « Annexe : <title> », or
