@@ -1,7 +1,7 @@
 """Read side of the append-only activity journal (writes go through services/activity.py)."""
 
 import uuid
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -25,7 +25,8 @@ def list_entries(
     if date_from:
         where.append(ActivityLog.at >= datetime.combine(date_from, time.min, UTC))
     if date_to:
-        where.append(ActivityLog.at < datetime.combine(date_to + timedelta(days=1), time.min, UTC))
+        # time.max (23:59:59.999999) is the last microsecond; `+ 1 day` would overflow at 9999-12-31.
+        where.append(ActivityLog.at <= datetime.combine(date_to, time.max, UTC))
     if action:
         where.append(ActivityLog.action == action)
     if profile_id:

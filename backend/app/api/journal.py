@@ -20,7 +20,7 @@ def list_journal(
     date_to: Annotated[date | None, Query(alias="to")] = None,
     action: str | None = None,
     profile_id: uuid.UUID | None = None,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> JournalPage:
     return journal.list_entries(

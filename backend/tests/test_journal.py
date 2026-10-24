@@ -62,6 +62,8 @@ def test_newest_first_with_profile_name(admin_client, rows):
         ({"action": "form_create"}, [3, 1]),
         ({"action": "nope"}, []),
         ({"from": "2026-03-04"}, []),
+        ({"to": "9999-12-31"}, [5, 4, 3, 2, 1, 0]),  # no date overflow on the upper bound
+        ({"from": "0001-01-01"}, [5, 4, 3, 2, 1, 0]),
     ],
 )
 def test_filters_date_and_action(admin_client, rows, params, expected):
@@ -93,7 +95,15 @@ def test_pagination_total_is_unpaged(admin_client, rows):
 
 
 @pytest.mark.parametrize(
-    "params", [{"page": 0}, {"page_size": 0}, {"page_size": 201}, {"from": "x"}]
+    "params",
+    [
+        {"page": 0},
+        {"page": 100_001},
+        {"page": 10**30},
+        {"page_size": 0},
+        {"page_size": 201},
+        {"from": "x"},
+    ],
 )
 def test_bad_query_is_422(admin_client, params):
     assert admin_client.get("/api/journal", params=params).status_code == 422
