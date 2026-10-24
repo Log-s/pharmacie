@@ -3,7 +3,9 @@
 Internal tool of a French officine. The people using it are pharmacists and preparers at a back-office
 PC or a tablet, between two patients: they open a fiche, fill it, and leave. The interface must read
 like a well-kept register: calm, dense but legible, nothing that competes with the form itself.
-Every token below is a CSS variable in `src/index.css`; components use the semantic Tailwind names
+Color, radius and elevation tokens are CSS variables defined in `src/index.css`; the type scale and
+spacing are Tailwind v4's default theme variables (`--text-*`, `--spacing`), emitted by
+`@import "tailwindcss"` in that file and deliberately not redefined. Components use the semantic Tailwind names
 (`bg-background`, `text-muted-foreground`, …), never raw colors.
 
 ## Direction
