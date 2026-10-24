@@ -1,15 +1,20 @@
 import uuid
+from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, Response
+from pydantic import ValidationError
 from sqlalchemy import select
+from starlette.datastructures import UploadFile as UploadFile
 
-from app.api.deps import CurrentAuth, Db, get_request_ctx, require_admin
+from app.api.deps import Auth, CurrentAuth, Db, get_request_ctx, require_admin
 from app.models import Annex
-from app.schemas.annexes import AnnexOut, AnnexUpdate, Title
+from app.schemas.annexes import AnnexOut, AnnexUpdate, AnnexUpload
 from app.services import activity, annexes
 from app.services.activity import RequestCtx
+from app.settings import settings
 
 # Mounted under /api in app/main.py; declare full paths below it (e.g. "/annexes/...").
 router = APIRouter(tags=["annexes"])
@@ -60,13 +65,53 @@ def get_annex_file(_auth: CurrentAuth, db: Db, annex_id: uuid.UUID) -> FileRespo
     )
 
 
-@router.post("/annexes", status_code=201, dependencies=[Depends(require_admin)])
+async def read_upload(
+    request: Request, _admin: Annotated[Auth, Depends(require_admin)]
+) -> AsyncIterator[tuple[UploadFile, AnnexUpload]]:
+    """Parses the multipart body itself, so auth, CSRF and the admin check have already run:
+    anonymous and user requests are refused before a byte of the body is read."""
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > settings.annex_max_bytes + annexes.MULTIPART_OVERHEAD:
+        raise HTTPException(413, annexes.too_big_message())
+    async with request.form() as form:
+        file = form.get("file")
+        if not isinstance(file, UploadFile):
+            raise HTTPException(422, "Le fichier de l'annexe est obligatoire.")
+        try:
+            fields = AnnexUpload.model_validate({"title": form.get("title")})
+        except ValidationError as exc:
+            raise RequestValidationError(exc.errors()) from exc
+        yield file, fields
+
+
+_UPLOAD_BODY = {
+    "required": True,
+    "content": {
+        "multipart/form-data": {
+            "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                    "file": {"type": "string", "format": "binary"},
+                    "title": {"type": "string", "maxLength": 200},
+                },
+            }
+        }
+    },
+}
+
+
+@router.post(
+    "/annexes",
+    status_code=201,
+    dependencies=[Depends(require_admin)],
+    openapi_extra={"requestBody": _UPLOAD_BODY},  # the body is parsed by `read_upload`
+)
 def upload_annex(
-    db: Db,
-    ctx: Ctx,
-    file: Annotated[UploadFile, File()],
-    title: Annotated[Title | None, Form()] = None,
+    db: Db, ctx: Ctx, upload: Annotated[tuple[UploadFile, AnnexUpload], Depends(read_upload)]
 ) -> AnnexOut:
+    file, fields = upload
+    title = fields.title
     annex_id, filename, size, sha256 = annexes.store_pdf(file.file, file.filename)
     path = annexes.path_for(annex_id)
     try:

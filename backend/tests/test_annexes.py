@@ -158,6 +158,78 @@ def test_stored_name_never_derives_from_the_client_filename(admin_client, annexe
     assert not (annexes_dir.parent / "evil.pdf").exists()
 
 
+def test_pdf_text_with_nul_uploads_with_a_clean_excerpt(admin_client, db):
+    body = upload(admin_client, make_pdf("A\\000B \\001C"), title="Notice").json()
+    assert body["excerpt"] == "AB C"
+    assert db.get(Annex, uuid.UUID(body["id"])).excerpt == "AB C"
+
+
+def test_nul_in_the_title_form_field_is_rejected_and_nothing_is_stored(
+    admin_client, annexes_dir, db
+):
+    response = upload(admin_client, make_pdf("x"), title="a\x00b")
+    assert response.status_code == 422
+    assert "nul" in response.json()["detail"][0]["msg"]
+    assert not annexes_dir.exists() or list(annexes_dir.iterdir()) == []
+    assert db.scalar(select(Annex)) is None
+    assert actions(db) == []
+
+
+def test_nul_in_title_or_excerpt_is_rejected_on_edit(admin_client, db):
+    annex = make_annex(admin_client, text="Dosage", title="Notice")
+    for field in ("title", "excerpt"):
+        response = admin_client.patch(f"/api/annexes/{annex['id']}", json={field: "a\u0000b"})
+        assert response.status_code == 422, field
+    row = db.get(Annex, uuid.UUID(annex["id"]))
+    db.refresh(row)
+    assert (row.title, row.excerpt) == ("Notice", "Dosage")
+    assert actions(db) == ["annex_uploaded"]
+
+
+def test_missing_file_part_is_a_422(admin_client):
+    response = admin_client.post("/api/annexes", data={"title": "x"})
+    assert response.status_code == 422
+    assert "obligatoire" in response.json()["detail"]
+
+
+# --- upload body is read only after auth ------------------------------------------------------
+
+
+@pytest.fixture
+def body_guard(monkeypatch):
+    """Any attempt to parse the multipart body fails the request."""
+
+    def explode(*_args, **_kwargs):
+        raise AssertionError("request body was parsed")
+
+    monkeypatch.setattr("starlette.requests.Request.form", explode)
+
+
+def test_anonymous_and_user_uploads_are_refused_before_the_body_is_read(
+    client, user_client, body_guard
+):
+    big = b"%PDF-" + b"0" * (8 * 1024 * 1024)
+    assert upload(client, big).status_code == 401
+    assert upload(user_client, big).status_code == 403
+
+
+def test_oversize_content_length_is_refused_before_the_body_is_read(
+    admin_client, annexes_dir, db, monkeypatch, body_guard
+):
+    monkeypatch.setattr(settings, "annex_max_bytes", 1000)
+    response = upload(admin_client, b"%PDF-" + b"0" * (1024 * 1024 + 2000))
+    assert response.status_code == 413
+    assert "volumineux" in response.json()["detail"]
+    assert not annexes_dir.exists() or list(annexes_dir.iterdir()) == []
+    assert db.scalar(select(Annex)) is None
+
+
+def test_upload_is_documented_as_multipart_in_openapi(client):
+    schema = client.get("/api/openapi.json").json()
+    body = schema["paths"]["/api/annexes"]["post"]["requestBody"]
+    assert "file" in body["content"]["multipart/form-data"]["schema"]["properties"]
+
+
 # --- download, list, search, edit -------------------------------------------------------------
 
 

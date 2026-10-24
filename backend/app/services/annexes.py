@@ -19,6 +19,12 @@ from app.settings import settings
 EXCERPT_CHARS = 500
 EXCERPT_MAX_PAGES = 20  # bounds the pypdf work on huge documents
 CHUNK = 64 * 1024
+CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")  # C0 except \t \n \r
+MULTIPART_OVERHEAD = 1024 * 1024  # boundaries, headers and the title field around the file
+
+
+def too_big_message() -> str:
+    return f"Fichier trop volumineux (maximum {settings.annex_max_bytes // (1024 * 1024)} Mo)."
 
 
 def clean_filename(raw: str | None) -> str:
@@ -51,7 +57,8 @@ def extract_excerpt(path: Path) -> str:
                 parts.append(page.extract_text() or "")
                 if sum(map(len, parts)) >= EXCERPT_CHARS * 2:
                     break
-        return " ".join(" ".join(parts).split())[:EXCERPT_CHARS]
+        text = CONTROL_CHARS.sub("", " ".join(parts))  # NUL would make the INSERT fail
+        return " ".join(text.split())[:EXCERPT_CHARS]
     except Exception:  # noqa: BLE001  # pypdf raises many types on bad input
         return ""
 
@@ -76,9 +83,7 @@ def store_pdf(source: BinaryIO, filename: str | None) -> tuple[uuid.UUID, str, i
             while chunk := source.read(CHUNK):
                 size += len(chunk)
                 if size > limit:
-                    raise HTTPException(
-                        413, f"Fichier trop volumineux (maximum {limit // (1024 * 1024)} Mo)."
-                    )
+                    raise HTTPException(413, too_big_message())
                 digest.update(chunk)
                 out.write(chunk)
     except BaseException:
