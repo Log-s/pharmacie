@@ -1,0 +1,75 @@
+# Works with `docker compose` and `podman-compose`. Secrets: run `make secrets` first.
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      SITE_HOST: ${SITE_HOST:-localhost}
+    ports:
+      - "${HTTPS_PORT:-8443}:8443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - front
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build:
+      context: backend
+      target: runtime
+    environment:
+      DB_HOST: db
+      DB_NAME: pharmacie
+      DB_USER: pharmacie
+    secrets:
+      - db_password
+      - secret_key
+    volumes:
+      - annexes:/data/annexes
+    networks:
+      - front
+      - back
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pharmacie
+      POSTGRES_USER: pharmacie
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - back
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U pharmacie -d pharmacie"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+networks:
+  front: {}
+  back:
+    internal: true
+
+volumes:
+  pgdata: {}
+  annexes: {}
+  caddy_data: {}
+  caddy_config: {}
+
+secrets:
+  db_password:
+    file: ./secrets/db_password
+  secret_key:
+    file: ./secrets/secret_key

@@ -1,0 +1,11 @@
+# Context of the proxy image (repository root). The api image uses backend/ as its context.
+.git
+.claude
+secrets
+backups
+backend
+test-results
+**/node_modules
+frontend/dist
+frontend/test-results
+frontend/playwright-report
