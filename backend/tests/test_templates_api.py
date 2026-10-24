@@ -1,3 +1,4 @@
+import json
 import uuid
 
 import pytest
@@ -238,3 +239,20 @@ def test_user_gets_403_on_admin_reads(user_client, published, path):
 def test_anonymous_gets_401(client, published, method, path, body):
     assert client.request(method, path.format(id=published), json=body).status_code == 401
     assert client.get("/api/templates/available").status_code == 401
+
+
+@pytest.mark.parametrize("bad", ["a\x00b", "a\ud800b"])
+def test_unstorable_characters_in_template_text_are_422(admin_client, bad):
+    # ensure_ascii JSON: httpx's json= cannot encode a lone surrogate.
+    def send(url, body):
+        return admin_client.post(
+            url, content=json.dumps(body), headers={"content-type": "application/json"}
+        )
+
+    assert send("/api/templates", {"name": bad}).status_code == 422
+    template = create(admin_client)
+    for field in ("label", "help"):
+        body = tree()
+        body["nodes"][1][field] = bad
+        response = send(f"/api/templates/{template['id']}/versions", body)
+        assert response.status_code == 422, (field, response.text)

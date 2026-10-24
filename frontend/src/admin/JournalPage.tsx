@@ -3,7 +3,6 @@ import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-r
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { format, parseISO } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import { PageHeader } from '@/components/PageHeader'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -262,7 +261,6 @@ function DateFilter({ label, value, onChange, disabled }: { label: string; value
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              locale={fr}
               selected={value}
               disabled={disabled}
               onSelect={(date) => {

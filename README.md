@@ -82,6 +82,7 @@ Sauvegarde et restauration : [`docs/backup-restore.md`](docs/backup-restore.md).
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `HTTPS_PORT` | `8443` | port HTTPS publié par le proxy (`make e2e` : `18443`, `make smoke-podman` : `18444`) |
+| `HTTPS_BIND` | `0.0.0.0` | adresse d'écoute du port HTTPS publié (`make e2e` : `127.0.0.1`) |
 | `SITE_HOST` | `localhost` | nom d'hôte du certificat Caddy |
 | `API_DEV_PORT` | `8000` | port local de l'api pour `make dev` |
 | `VITE_PORT` | `5173` | port du serveur Vite pour `make dev` |
@@ -121,6 +122,9 @@ Plusieurs copies du dépôt peuvent tourner en parallèle en changeant ces ports
         LOCKOUT_THRESHOLD: "5"
   ```
 
+  `EXPOSE_API_DOCS: "true"` publie `/api/docs`, `/api/redoc` et `/api/openapi.json` (désactivés par
+  défaut ; pour le développement seulement).
+
 - **Secrets.** `secrets/db_password` et `secrets/secret_key` (créés par `make secrets`) sont des
   secrets compose montés dans `/run/secrets`, jamais copiés dans une image ni versionnés. Les
   mots de passe admin et utilisateur sont hachés en Argon2id (12 caractères minimum, score zxcvbn
@@ -128,7 +132,7 @@ Plusieurs copies du dépôt peuvent tourner en parallèle en changeant ces ports
   (`python -m app.cli reset-admin-password`). PostgreSQL est sur un réseau interne sans port publié ;
   les conteneurs tournent sans root.
 - **Journal.** `GET /api/journal` (admin seulement) lit un journal en ajout seul : aucune route
-  d'écriture et un trigger PostgreSQL refuse tout `UPDATE` ou `DELETE`.
+  d'écriture et un trigger PostgreSQL refuse tout `UPDATE`, `DELETE` ou `TRUNCATE`.
 - **Audits.** `make audit` lance `pip-audit` (dans l'image api, sans l'ajouter aux dépendances),
   `npm audit --omit=dev` et Trivy sur les images `api`, `proxy` et `postgres:16-alpine` (conteneur
   `aquasec/trivy`). Le code de sortie est non nul s'il y a des vulnérabilités (Trivy : HIGH ou

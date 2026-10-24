@@ -3,8 +3,10 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import AfterValidator
 
 from app.api.deps import Db, require_admin
+from app.schemas.annexes import no_unstorable
 from app.schemas.journal import JournalPage
 from app.services import journal
 
@@ -18,7 +20,7 @@ def list_journal(
     db: Db,
     date_from: Annotated[date | None, Query(alias="from")] = None,
     date_to: Annotated[date | None, Query(alias="to")] = None,
-    action: str | None = None,
+    action: Annotated[str, AfterValidator(no_unstorable)] | None = None,
     profile_id: uuid.UUID | None = None,
     page: Annotated[int, Query(ge=1, le=100_000)] = 1,
     page_size: Annotated[int, Query(ge=1, le=200)] = 50,

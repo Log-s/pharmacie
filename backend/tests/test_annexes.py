@@ -11,6 +11,7 @@ from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from sqlalchemy import select
 
+from app.main import app
 from app.models import ActivityLog, Annex, Template, TemplateVersion
 from app.services import annexes
 from app.settings import settings
@@ -261,8 +262,8 @@ def test_oversize_content_length_is_refused_before_the_body_is_read(
     assert db.scalar(select(Annex)) is None
 
 
-def test_upload_is_documented_as_multipart_in_openapi(client):
-    schema = client.get("/api/openapi.json").json()
+def test_upload_is_documented_as_multipart_in_openapi():
+    schema = app.openapi()
     body = schema["paths"]["/api/annexes"]["post"]["requestBody"]
     assert "file" in body["content"]["multipart/form-data"]["schema"]["properties"]
 

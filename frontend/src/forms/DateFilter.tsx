@@ -1,6 +1,5 @@
 import { CalendarIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
-import { fr } from 'date-fns/locale'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -27,7 +26,6 @@ export function DateFilter({ label, value, onChange, disabled }: { label: string
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
-              locale={fr}
               selected={value}
               disabled={disabled}
               onSelect={(date) => {

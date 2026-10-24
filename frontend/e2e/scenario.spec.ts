@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test'
-import { tinyPdf } from './pdf'
+import { tinyPdf } from './pdf.ts'
 
 // Specification §11 « E2E Playwright », one serial scenario on a fresh production stack (scripts/e2e.sh
 // has already run the non-interactive install). Admin and user keep their own browser context.

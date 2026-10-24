@@ -3,6 +3,8 @@
 import io
 import socket
 import uuid
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 from pypdf import PdfReader
@@ -83,7 +85,9 @@ def test_content_shows_checked_only(exported):
     text = "\n".join(pages)
     for expected in (
         "Contrôle réception",
+        "Profil propriétaire",
         "Alice Durand",  # form owner (header)
+        "Créée le",
         "Bruno Martin",  # author field
         "24/10/2026",
         "Chambre froide",
@@ -98,6 +102,12 @@ def test_content_shows_checked_only(exported):
         assert expected in text
     for absent in ("Rejeté", "Lot périmé", "Enfant caché", "Réf. interne"):
         assert absent not in text
+
+
+def test_header_date_is_the_creation_day_in_paris(exported):
+    _, pages, form = exported
+    created = datetime.fromisoformat(form["created_at"]).astimezone(ZoneInfo("Europe/Paris"))
+    assert f"Créée le {created:%d/%m/%Y}" in pages[0].replace("\n", " ")
 
 
 def test_footer_on_every_page(exported):

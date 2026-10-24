@@ -1,4 +1,3 @@
-import { fr } from 'date-fns/locale'
 import { CalendarIcon } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { AnnexInfo } from '@/annexes/AnnexInfo'
@@ -85,7 +84,6 @@ export function DatePicker({ id, labelId, value, onChange, onBlur, invalid, requ
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
-          locale={fr}
           selected={date}
           defaultMonth={date}
           required={required}

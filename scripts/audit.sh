@@ -23,7 +23,7 @@ $engine pull -q postgres:16-alpine >/dev/null || exit 1 # scanned from the regis
 
 # pip-audit lives in a throwaway container layer (--target keeps the audited env untouched).
 run "pip-audit (image api)" $engine run --rm --user 0 --entrypoint sh "$api" -c \
-  'pip install -q --target /tmp/pa pip-audit && PYTHONPATH=/tmp/pa python -m pip_audit --path "$(python -c "import site;print(site.getsitepackages()[0])")"'
+  'pip install -q --target /tmp/pa pip-audit==2.10.1 && PYTHONPATH=/tmp/pa python -m pip_audit --path "$(python -c "import site;print(site.getsitepackages()[0])")"'
 
 run "npm audit --omit=dev (frontend)" npm audit --omit=dev --prefix frontend
 
@@ -31,7 +31,7 @@ trivy() { # trivy IMAGE [extra trivy args]: scan a saved tarball, DB cached in a
   local image="$1"; shift
   $engine save -o "$tmp/img.tar" "$image" || return 1
   $engine run --rm -v pharmacie-trivy-cache:/root/.cache -v "$tmp/img.tar:/img.tar:ro" \
-    aquasec/trivy:latest image --input /img.tar --scanners vuln --quiet "$@"
+    aquasec/trivy:0.76.1 image --input /img.tar --scanners vuln --quiet "$@"
 }
 for image in "$api" "$proxy" postgres:16-alpine; do
   echo "=== Trivy $image (all severities)"

@@ -107,8 +107,8 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   - `POST /api/profiles` (admin) → 201 `ProfileOut`. `PUT /api/profiles/{id}` (admin, full
     replacement of the three fields) → `ProfileOut`, 404 if unknown. Unknown body fields → 422.
   - `GET /api/profiles/{id}/deletion-impact` (admin) → `{forms_count, will_archive}`.
-  - `DELETE /api/profiles/{id}` (admin) → `{forms_count, archived}`. No forms: hard delete
-    (`archived: false`). Forms: `archived_at` set, forms untouched (`archived: true`); deleting an
+  - `DELETE /api/profiles/{id}` (admin) → `{forms_count, archived}`. No forms (owned, or named
+    as an `author` value in any `forms.data`): hard delete (`archived: false`). Otherwise: `archived_at` set, forms untouched (`archived: true`); deleting an
     archived profile again keeps its first `archived_at`. The profile row is locked
     (`FOR UPDATE`) so a concurrent form insert cannot slip in between count and delete.
   - `POST /api/session/profile {profile_id}` (user only) → `Me` with the new `active_profile`;
@@ -410,8 +410,8 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
 - Activity: `form_export` (target `form`/<form id>, details `reference`), committed with the response.
 - Code: `app/pdf/render.py` (`render(db, form: FormOut) -> bytes`), `form.html` (Jinja2, autoescape on),
   `form.css` (inlined into the page).
-- Content: header (template name + version, Référence, Auteur = form owner, Date = creation day in UTC,
-  `dd/mm/yyyy`); each category is a section; each field prints its label and answer(s). Only checked
+- Content: header (template name + version, Référence, « Profil propriétaire » = form owner, « Créée le » = creation day in
+  Europe/Paris, `dd/mm/yyyy`); each category is a section; each field prints its label and answer(s). Only checked
   options are printed, with their visible children nested (the `data` already holds visible nodes only).
   Unanswered fields print « — ». Author fields print the profile name (« (profil supprimé) » when
   archived). The `reference` node is not printed again (header). Annex ref: « Annexe : <title> », or
