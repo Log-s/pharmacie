@@ -7,7 +7,7 @@ services:
     environment:
       SITE_HOST: ${SITE_HOST:-localhost}
     ports:
-      - "${HTTPS_PORT:-8443}:8443"
+      - "${HTTPS_BIND:-0.0.0.0}:${HTTPS_PORT:-8443}:8443"
     volumes:
       - caddy_data:/data
       - caddy_config:/config

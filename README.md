@@ -82,6 +82,7 @@ Sauvegarde et restauration : [`docs/backup-restore.md`](docs/backup-restore.md).
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `HTTPS_PORT` | `8443` | port HTTPS publié par le proxy (`make e2e` : `18443`, `make smoke-podman` : `18444`) |
+| `HTTPS_BIND` | `0.0.0.0` | adresse d'écoute du port HTTPS publié (`make e2e` : `127.0.0.1`) |
 | `SITE_HOST` | `localhost` | nom d'hôte du certificat Caddy |
 | `API_DEV_PORT` | `8000` | port local de l'api pour `make dev` |
 | `VITE_PORT` | `5173` | port du serveur Vite pour `make dev` |
