@@ -281,6 +281,15 @@ def test_rate_limiter_window():
     assert ratelimit.allow("a", 1, window=0)  # hits older than the window are forgotten
 
 
+def test_rate_limiter_forgets_idle_keys(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(ratelimit.time, "monotonic", lambda: clock[0])
+    assert ratelimit.allow("login:10.0.0.9", 5)
+    clock[0] += ratelimit.WINDOW_SECONDS
+    assert ratelimit.allow("login:10.0.0.10", 5)
+    assert "login:10.0.0.9" not in ratelimit._hits
+
+
 @pytest.mark.parametrize(
     "body",
     [
