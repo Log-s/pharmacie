@@ -6,6 +6,8 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, ConfigDict
 from pydantic_core import PydanticCustomError
 
+from app.schemas.annexes import no_unstorable
+
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -38,8 +40,8 @@ class ProfileIn(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    display_name: Annotated[str, AfterValidator(_display_name)]
-    initials: Annotated[str, AfterValidator(_initials)]
+    display_name: Annotated[str, AfterValidator(no_unstorable), AfterValidator(_display_name)]
+    initials: Annotated[str, AfterValidator(no_unstorable), AfterValidator(_initials)]
     color: Annotated[str, AfterValidator(_color)]
 
 

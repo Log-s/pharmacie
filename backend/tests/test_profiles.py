@@ -1,5 +1,6 @@
 """Profiles API (U4): admin CRUD, delete/archive semantics, active-profile switch, authz."""
 
+import json
 import uuid
 
 import pytest
@@ -259,3 +260,15 @@ def test_failed_writes_leave_no_activity_row(user_client, admin_client, db):
     user_client.post("/api/profiles", json=GOOD)
     admin_client.post("/api/profiles", json={**GOOD, "color": "nope"})
     assert actions(db) == []
+
+
+@pytest.mark.parametrize("field", ["display_name", "initials"])
+@pytest.mark.parametrize("bad", ["a\x00", "\ud800"])
+def test_unstorable_characters_in_a_profile_are_422(admin_client, field, bad):
+    # ensure_ascii JSON: httpx's json= cannot encode a lone surrogate.
+    response = admin_client.post(
+        "/api/profiles",
+        content=json.dumps(GOOD | {field: bad}),
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 422, response.text

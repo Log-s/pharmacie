@@ -7,9 +7,22 @@ import uuid
 from collections.abc import Callable, Iterator
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
-Label = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+from app.schemas.annexes import no_unstorable
+
+Label = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=200),
+    AfterValidator(no_unstorable),
+]
 
 
 class Strict(BaseModel):
@@ -24,7 +37,7 @@ class NodeBase(Strict):
     id: uuid.UUID
     label: Label
     required: bool = False
-    help: str | None = Field(default=None, max_length=2000)
+    help: Annotated[str, Field(max_length=2000), AfterValidator(no_unstorable)] | None = None
     annex_ref: AnnexRef | None = None
 
 
