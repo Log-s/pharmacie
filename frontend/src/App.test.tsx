@@ -54,7 +54,7 @@ describe('role guards and navigation', () => {
     renderAt('/annexes', user)
     expect(navLinks()).toEqual(['Fiches', 'Annexes'])
     expect(screen.getByText('Claire Martin')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Changer de profil' })).toHaveAttribute('href', '/profil')
+    expect(screen.getByRole('button', { name: /Changer de profil/ })).toBeInTheDocument()
   })
 
   test('user without an active profile is sent to the profile picker, without nav', () => {
@@ -85,7 +85,7 @@ describe('role guards and navigation', () => {
   test('logout returns to the login page', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
     vi.stubGlobal('fetch', fetchMock)
-    const router = renderAt('/journal', admin)
+    const router = renderAt('/fiches', admin)
     fireEvent.click(screen.getByRole('button', { name: 'Se déconnecter' }))
     expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
     await waitFor(() => expect(router.state.location.state).toBeNull())
