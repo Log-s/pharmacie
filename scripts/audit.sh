@@ -19,6 +19,7 @@ run() { # run NAME CMD...
 api=pharmacie-audit-api proxy=pharmacie-audit-proxy
 $engine build -q -t "$api" --target runtime backend >/dev/null || exit 1
 $engine build -q -t "$proxy" -f frontend/Dockerfile . >/dev/null || exit 1
+$engine pull -q postgres:16-alpine >/dev/null || exit 1 # scanned from the registry, not built here
 
 # pip-audit lives in a throwaway container layer (--target keeps the audited env untouched).
 run "pip-audit (image api)" $engine run --rm --user 0 --entrypoint sh "$api" -c \
