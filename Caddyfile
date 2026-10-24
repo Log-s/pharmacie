@@ -19,12 +19,16 @@
 		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
 		-Server
 	}
 
 	encode zstd gzip
 
 	handle /api/* {
+		# Personal data and session-bound answers: never cached by the browser or a proxy.
+		header Cache-Control "no-store"
 		reverse_proxy api:8000
 	}
 
