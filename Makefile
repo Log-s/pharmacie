@@ -9,7 +9,7 @@ export VITE_PORT ?= 5173
 DEV_API := $(shell basename "$(CURDIR)" | tr A-Z a-z)-api-dev
 BACKEND_CHECK := ruff check . && ruff format --check . && pytest
 
-.PHONY: up down install migrate backup restore audit test check e2e secrets dev
+.PHONY: up down install migrate backup restore audit test check e2e smoke-podman secrets dev
 
 secrets: ## create secrets/* if missing
 	@scripts/make-secrets.sh
@@ -45,8 +45,11 @@ check: ## Gate 1: backend ruff + pytest, frontend lint + typecheck + vitest
 	npm --prefix frontend run typecheck
 	npm --prefix frontend run test -- --run
 
-e2e: ## STUB, completed by U13
-	@echo "make e2e : pas encore implémenté (U13)." >&2; exit 1
+e2e: ## Playwright §11 scenario on a throwaway production stack (docker, HTTPS_PORT 18443)
+	COMPOSE='$(COMPOSE)' ENGINE='$(ENGINE)' scripts/e2e.sh
+
+smoke-podman: ## podman-compose up on a throwaway project (HTTPS_PORT 18444), health check, install
+	COMPOSE=podman-compose ENGINE=podman scripts/e2e.sh smoke
 
 dev: secrets ## db + api (reload, port API_DEV_PORT) + vite dev server (port VITE_PORT, proxies /api)
 	$(COMPOSE) run -d --rm --build --name $(DEV_API) -p 127.0.0.1:$(API_DEV_PORT):8000 \
