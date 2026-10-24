@@ -62,7 +62,9 @@ Plusieurs copies du dépôt peuvent tourner en parallèle en changeant ces ports
   `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
   `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` et
   `Cross-Origin-Resource-Policy` en `same-origin`, `Cache-Control: no-store` sur `/api/*`, en-tête
-  `Server` supprimé.
+  `Server` supprimé. Corps de requête limité à 21 MB sur `/api/*` (`request_body` dans le
+  `Caddyfile`, réponse 413 au-delà) : c'est la limite des annexes `ANNEX_MAX_BYTES` (20 MiB par
+  défaut) plus l'enveloppe multipart ; si vous augmentez `ANNEX_MAX_BYTES`, augmentez-la aussi.
 - **Sessions.** Cookie `session` `HttpOnly; Secure; SameSite=Strict`, jeton aléatoire dont seul le
   hachage SHA-256 est stocké. Expiration après inactivité : `SESSION_IDLE_MINUTES` (30).
 - **CSRF.** Jeton lié à la session, exigé dans l'en-tête `X-CSRF-Token` sur tout POST, PUT, PATCH et
