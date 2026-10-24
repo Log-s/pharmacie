@@ -14,9 +14,9 @@ import { cn } from 'cn'
 
 /** Client-side check that mirrors the server rules, so the common mistakes fail before the upload. */
 function problem(file: File, title: string): string | null {
-  if (!file.name.toLowerCase().endsWith('.pdf')) return `« ${file.name} » n'est pas un PDF : seuls les fichiers .pdf sont acceptés.`
+  if (!file.name.toLowerCase().endsWith('.pdf')) return `« ${file.name} » n'est pas un PDF : seuls les fichiers .pdf sont acceptés.`
   if (file.size > MAX_ANNEX_BYTES)
-    return `« ${file.name} » est trop volumineux (${formatSize(file.size)}) : la taille maximale est de ${formatSize(MAX_ANNEX_BYTES)}.`
+    return `« ${file.name} » est trop volumineux (${formatSize(file.size)}) : la taille maximale est de ${formatSize(MAX_ANNEX_BYTES)}.`
   if (hasUnstorable(title)) return UNSTORABLE_MESSAGE
   return null
 }
@@ -37,7 +37,7 @@ export function AnnexUpload() {
     onSuccess: async (annex) => {
       setTitle('')
       await queryClient.invalidateQueries({ queryKey: annexesKey })
-      toast.success(`Annexe « ${annex.title} » ajoutée.`)
+      toast.success(`Annexe « ${annex.title} » ajoutée.`)
     },
     onError: (e) => setError(e.message),
   })
@@ -56,7 +56,7 @@ export function AnnexUpload() {
       </h2>
       <Field>
         <FieldLabel htmlFor="annex-title">Titre (facultatif)</FieldLabel>
-        <Input id="annex-title" name="title" autoComplete="off" className="max-w-md" placeholder="Par défaut : nom du fichier" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Input id="annex-title" name="title" autoComplete="off" className="max-w-md" placeholder="Par défaut, le nom du fichier…" value={title} onChange={(e) => setTitle(e.target.value)} />
       </Field>
       <div
         onDragOver={(e) => {

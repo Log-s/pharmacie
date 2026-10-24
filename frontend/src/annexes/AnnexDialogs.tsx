@@ -2,8 +2,8 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { fieldErrors, hasUnstorable, UNSTORABLE_MESSAGE } from '@/admin/validation'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { fieldErrors, focusFirstInvalid, hasUnstorable, UNSTORABLE_MESSAGE } from '@/admin/validation'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +29,7 @@ const schema = z.object({
 })
 
 type Errors = Partial<Record<'title' | 'excerpt', string>>
+const FIELD_IDS = { title: 'annex-edit-title', excerpt: 'annex-edit-excerpt' }
 
 /** Admin: edit the title and the excerpt shown by the AnnexInfo tooltip. */
 export function EditAnnexDialog({ annex, onClose }: { annex: Annex; onClose: () => void }) {
@@ -43,7 +44,10 @@ export function EditAnnexDialog({ annex, onClose }: { annex: Annex; onClose: () 
     },
     onError: (error) => {
       const fields = fieldErrors(error)
-      if (Object.keys(fields).length) setErrors(fields)
+      if (Object.keys(fields).length) {
+        setErrors(fields)
+        focusFirstInvalid(fields, FIELD_IDS)
+      }
       else toast.error(error.message)
     },
   })
@@ -55,6 +59,7 @@ export function EditAnnexDialog({ annex, onClose }: { annex: Annex; onClose: () 
     if (!parsed.success) for (const issue of parsed.error.issues) found[issue.path[0] as keyof Errors] ??= issue.message
     for (const key of ['title', 'excerpt'] as const) if (hasUnstorable(values[key])) found[key] = UNSTORABLE_MESSAGE
     setErrors(found)
+    focusFirstInvalid(found, FIELD_IDS)
     if (parsed.success && !Object.keys(found).length) save.mutate(parsed.data)
   }
 
@@ -64,7 +69,7 @@ export function EditAnnexDialog({ annex, onClose }: { annex: Annex; onClose: () 
         <form onSubmit={submit} noValidate className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Modifier l'annexe</DialogTitle>
-            <DialogDescription>Fichier : {annex.filename}. Le fichier lui-même ne peut pas être remplacé.</DialogDescription>
+            <DialogDescription>Fichier : {annex.filename}. Le fichier lui-même ne peut pas être remplacé.</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field data-invalid={!!errors.title}>
@@ -75,7 +80,7 @@ export function EditAnnexDialog({ annex, onClose }: { annex: Annex; onClose: () 
             <Field data-invalid={!!errors.excerpt}>
               <FieldLabel htmlFor="annex-edit-excerpt">Extrait</FieldLabel>
               <Textarea id="annex-edit-excerpt" name="excerpt" rows={6} value={values.excerpt} onChange={(e) => setValues({ ...values, excerpt: e.target.value })} aria-invalid={!!errors.excerpt} aria-describedby={errors.excerpt ? 'annex-edit-excerpt-error' : 'annex-edit-excerpt-help'} />
-              <FieldDescription id="annex-edit-excerpt-help">Affiché au survol de l'icône « i » dans les fiches.</FieldDescription>
+              <FieldDescription id="annex-edit-excerpt-help">Affiché au survol de l'icône « i » dans les fiches.</FieldDescription>
               {errors.excerpt && <FieldError id="annex-edit-excerpt-error">{errors.excerpt}</FieldError>}
             </Field>
           </FieldGroup>
@@ -117,12 +122,11 @@ export function DeleteAnnexDialog({ annex, onClose }: { annex: Annex; onClose: (
     <AlertDialog open onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer l'annexe « {annex.title} » ?</AlertDialogTitle>
+          <AlertDialogTitle>Supprimer l'annexe « {annex.title} » ?</AlertDialogTitle>
           <AlertDialogDescription>Le fichier PDF sera supprimé définitivement. Cette action est irréversible.</AlertDialogDescription>
         </AlertDialogHeader>
         {conflict && (
           <Alert variant="destructive" role="alert">
-            <AlertTitle>Suppression impossible</AlertTitle>
             <AlertDescription>
               <p>{conflict.message}</p>
               {templates.length > 0 && (

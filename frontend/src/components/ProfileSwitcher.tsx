@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChevronDownIcon } from 'lucide-react'
 import { cn } from 'cn'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +25,7 @@ export function ProfileSwitcher() {
   const choose = (id: string) => {
     if (id === profile.id) return
     switchProfile.mutate(id, {
-      onSuccess: (me) => toast.success(`Profil actif : ${me.active_profile?.display_name ?? ''}`),
+      onSuccess: (me) => toast.success(`Profil actif : ${me.active_profile?.display_name ?? ''}`),
       onError: (error) => toast.error(error.message),
     })
   }
@@ -33,11 +33,12 @@ export function ProfileSwitcher() {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-9 gap-2 px-2" aria-label={`Profil actif : ${profile.display_name}. Changer de profil`}>
+        {/* A native button: shadcn's Button does not forward `ref` under React 18, which Popper needs. */}
+        <button type="button" className={buttonVariants({ variant: 'ghost', className: 'h-9 gap-2 px-2' })} aria-label={`Profil actif : ${profile.display_name}. Changer de profil`}>
           <Paraphe initials={profile.initials} color={profile.color} />
           <span className="max-w-40 truncate text-sm font-medium">{profile.display_name}</span>
           <ChevronDownIcon data-icon="inline-end" />
-        </Button>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="min-w-56">
         <DropdownMenuLabel>Changer de profil</DropdownMenuLabel>

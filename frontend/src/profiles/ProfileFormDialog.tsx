@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { z } from 'zod'
-import { fieldErrors, hasUnstorable, UNSTORABLE_MESSAGE } from '@/admin/validation'
+import { fieldErrors, focusFirstInvalid, hasUnstorable, UNSTORABLE_MESSAGE } from '@/admin/validation'
 import { Paraphe } from '@/components/ProfileSwitcher'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -14,7 +14,16 @@ import { api, queryClient } from '@/lib/api'
 import { type Profile, type ProfileInput, profilesKey } from '@/profiles/api'
 
 // Palette of the register: distinct hues, each readable behind the initials (text stays foreground).
-const PRESETS = ['#2f855a', '#2b6cb0', '#6b46c1', '#b83280', '#c05621', '#b7791f', '#0f766e', '#4a5568']
+const PRESETS = [
+  ['#2f855a', 'Vert'],
+  ['#2b6cb0', 'Bleu'],
+  ['#6b46c1', 'Violet'],
+  ['#b83280', 'Rose'],
+  ['#c05621', 'Orange'],
+  ['#b7791f', 'Ocre'],
+  ['#0f766e', 'Turquoise'],
+  ['#4a5568', 'Ardoise'],
+]
 
 const schema = z.object({
   display_name: z.string().trim().min(1, 'Le nom affiché est obligatoire.').max(100, 'Le nom ne peut pas dépasser 100 caractères.'),
@@ -23,13 +32,14 @@ const schema = z.object({
 })
 
 type Errors = Partial<Record<keyof ProfileInput, string>>
+const FIELD_IDS = { display_name: 'profile-name', initials: 'profile-initials' }
 
 /** Create (no `profile`) or edit one profile; closes itself once saved. */
 export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: Profile; open: boolean; onOpenChange: (open: boolean) => void }) {
   const [values, setValues] = useState<ProfileInput>({
     display_name: profile?.display_name ?? '',
     initials: profile?.initials ?? '',
-    color: profile?.color ?? PRESETS[0],
+    color: profile?.color ?? PRESETS[0][0],
   })
   const [errors, setErrors] = useState<Errors>({})
   const save = useMutation({
@@ -42,7 +52,10 @@ export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: P
     },
     onError: (error) => {
       const fields = fieldErrors(error)
-      if (Object.keys(fields).length) setErrors(fields)
+      if (Object.keys(fields).length) {
+        setErrors(fields)
+        focusFirstInvalid(fields, FIELD_IDS)
+      }
       else toast.error(error.message)
     },
   })
@@ -55,6 +68,7 @@ export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: P
     if (!parsed.success) for (const issue of parsed.error.issues) found[issue.path[0] as keyof ProfileInput] ??= issue.message
     for (const key of ['display_name', 'initials'] as const) if (hasUnstorable(values[key])) found[key] = UNSTORABLE_MESSAGE
     setErrors(found)
+    focusFirstInvalid(found, FIELD_IDS)
     if (parsed.success && !Object.keys(found).length) save.mutate(parsed.data)
   }
 
@@ -86,11 +100,11 @@ export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: P
                 onValueChange={set('color')}
                 className="flex w-auto flex-wrap items-center gap-2"
               >
-                {PRESETS.map((color) => (
+                {PRESETS.map(([color, name]) => (
                   <RadioGroupItem
                     key={color}
                     value={color}
-                    aria-label={color}
+                    aria-label={name}
                     className="size-8 border-2 border-background ring-1 ring-border data-[state=checked]:ring-2 data-[state=checked]:ring-foreground"
                     style={{ backgroundColor: color }}
                   />

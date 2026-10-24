@@ -36,7 +36,7 @@ export default function ProfilesPage() {
     <>
       <PageHeader
         title="Profils"
-        description="Les profils de l'équipe : nom affiché, initiales et couleur."
+        description="Les profils de l'équipe : nom affiché, initiales et couleur."
         actions={
           <Button onClick={() => setEditing(null)}>
             <PlusIcon data-icon="inline-start" />
@@ -55,7 +55,7 @@ export default function ProfilesPage() {
         <Empty className="border">
           <EmptyHeader>
             <EmptyTitle>Aucun profil</EmptyTitle>
-            <EmptyDescription>Créez un premier profil : le compte utilisateur doit en choisir un pour travailler.</EmptyDescription>
+            <EmptyDescription>Créez un premier profil : le compte utilisateur doit en choisir un pour travailler.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
@@ -85,11 +85,11 @@ export default function ProfilesPage() {
                   <TableCell>
                     {!profile.archived_at && (
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => setEditing(profile)} aria-label={`Modifier ${profile.display_name}`}>
+                        <Button variant="ghost" onClick={() => setEditing(profile)} aria-label={`Modifier ${profile.display_name}`}>
                           <PencilIcon data-icon="inline-start" />
                           Modifier
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => setDeleting(profile)} aria-label={`Supprimer ${profile.display_name}`}>
+                        <Button variant="ghost" onClick={() => setDeleting(profile)} aria-label={`Supprimer ${profile.display_name}`}>
                           <Trash2Icon data-icon="inline-start" />
                           Supprimer
                         </Button>
@@ -132,7 +132,7 @@ export function DeleteProfileDialog({ profile, onClose }: { profile: Profile; on
     <AlertDialog open onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Supprimer le profil « {profile.display_name} » ?</AlertDialogTitle>
+          <AlertDialogTitle>Supprimer le profil « {profile.display_name} » ?</AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div aria-live="polite">
               {impact.isPending && <p>Vérification des fiches liées…</p>}
@@ -140,10 +140,10 @@ export function DeleteProfileDialog({ profile, onClose }: { profile: Profile; on
               {impact.data && archive && (
                 <p>
                   Ce profil possède {plural(impact.data.forms_count, 'fiche')}. Il sera <strong>archivé</strong> : il disparaît du sélecteur de profil, et ses fiches restent consultables en
-                  lecture seule sous la mention « {profile.display_name} (profil supprimé) ».
+                  lecture seule sous la mention « {profile.display_name} (profil supprimé) ».
                 </p>
               )}
-              {impact.data && !archive && <p>Ce profil n'a aucune fiche : il sera <strong>supprimé définitivement</strong>.</p>}
+              {impact.data && !archive && <p>Ce profil n'a aucune fiche : il sera <strong>supprimé définitivement</strong>.</p>}
             </div>
           </AlertDialogDescription>
         </AlertDialogHeader>

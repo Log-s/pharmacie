@@ -62,7 +62,7 @@ describe('Annexes page', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Supprimer Protocole de dilution' }))
     const dialog = await screen.findByRole('alertdialog')
     fireEvent.click(within(dialog).getByRole('button', { name: "Supprimer l'annexe" }))
-    expect(await within(dialog).findByText('Suppression impossible')).toBeInTheDocument()
+    expect(await within(dialog).findByText('Cette annexe est utilisée par des templates.')).toBeInTheDocument()
     expect(within(dialog).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Préparation magistrale', 'Stupéfiants'])
     const del = fetchMock.mock.calls.find(([, init]) => init?.method === 'DELETE')!
     expect((del[1] as { headers: Record<string, string> }).headers['X-CSRF-Token']).toBe('csrf-admin')

@@ -20,3 +20,7 @@ export function fieldErrors(error: unknown): Record<string, string> {
 
 /** Pluralised French count: `plural(2, 'fiche')` → « 2 fiches ». */
 export const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`
+
+/** Focus the first invalid field once its error has rendered. By id: shadcn `Input` drops `ref` under React 18. */
+export const focusFirstInvalid = (errors: Record<string, string>, ids: Record<string, string>) =>
+  setTimeout(() => document.getElementById(ids[Object.keys(ids).find((key) => errors[key]) ?? ''])?.focus(), 0)

@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon, XIcon } from 'lucide-react'
 import { useState } from 'react'
-import { format } from 'date-fns'
+import { useSearchParams } from 'react-router'
+import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { PageHeader } from '@/components/PageHeader'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldLabel } from '@/components/ui/field'
@@ -61,14 +62,33 @@ const actionLabel = (action: string) => ACTION_LABELS[action] ?? action
 
 const iso = (date: Date) => format(date, 'yyyy-MM-dd')
 
-/** Admin: append-only journal, filtered server-side by date range, action and profile. */
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/
+const dateTime = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'medium' })
+const shortDay = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' })
+
+/** Admin: append-only journal, filtered server-side by date range, action and profile. Filters and page live in the URL. */
 export default function JournalPage() {
-  const [filters, setFilters] = useState<{ from?: Date; to?: Date; action: string; profile: string }>({ action: ALL, profile: ALL })
-  const [page, setPage] = useState(1)
-  const change = (patch: Partial<typeof filters>) => {
-    setFilters((f) => ({ ...f, ...patch }))
-    setPage(1)
+  const [search, setSearch] = useSearchParams()
+  const day = (key: string) => {
+    const value = search.get(key)
+    return value && ISO_DAY.test(value) ? parseISO(value) : undefined
   }
+  const filters = { from: day('from'), to: day('to'), action: search.get('action') ?? ALL, profile: search.get('profile_id') ?? ALL }
+  const page = Math.min(100_000, Math.max(1, Math.trunc(Number(search.get('page'))) || 1))
+  // Any filter change goes back to page 1.
+  const change = (patch: Record<string, string | undefined>) =>
+    setSearch(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        for (const [key, value] of Object.entries({ page: undefined, ...patch })) {
+          if (value) next.set(key, value)
+          else next.delete(key)
+        }
+        return next
+      },
+      { replace: true },
+    )
+  const setPage = (value: number) => change({ page: value > 1 ? String(value) : undefined })
   const actions = useQuery({ queryKey: ['journal', 'actions'], queryFn: () => api<string[]>('/journal/actions') })
   const profiles = useProfiles({ archived: true })
   const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) })
@@ -86,13 +106,13 @@ export default function JournalPage() {
 
   return (
     <>
-      <PageHeader title="Journal d'activité" description="Qui a fait quoi, et quand. Le journal est en ajout seul : rien ne peut y être modifié ni supprimé." />
+      <PageHeader title="Journal d'activité" description="Qui a fait quoi, et quand. Le journal est en ajout seul : rien ne peut y être modifié ni supprimé." />
       <form className="mb-4 flex flex-wrap items-end gap-3" aria-label="Filtres du journal" onSubmit={(e) => e.preventDefault()}>
-        <DateFilter label="Du" value={filters.from} onChange={(from) => change({ from })} disabled={filters.to && { after: filters.to }} />
-        <DateFilter label="Au" value={filters.to} onChange={(to) => change({ to })} disabled={filters.from && { before: filters.from }} />
+        <DateFilter label="Du" value={filters.from} onChange={(from) => change({ from: from && iso(from) })} disabled={filters.to && { after: filters.to }} />
+        <DateFilter label="Au" value={filters.to} onChange={(to) => change({ to: to && iso(to) })} disabled={filters.from && { before: filters.from }} />
         <Field className="w-52">
           <FieldLabel htmlFor="journal-action">Action</FieldLabel>
-          <Select value={filters.action} onValueChange={(action) => change({ action })}>
+          <Select value={filters.action} onValueChange={(action) => change({ action: action === ALL ? undefined : action })}>
             <SelectTrigger id="journal-action" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -110,7 +130,7 @@ export default function JournalPage() {
         </Field>
         <Field className="w-52">
           <FieldLabel htmlFor="journal-profile">Profil</FieldLabel>
-          <Select value={filters.profile} onValueChange={(profile) => change({ profile })}>
+          <Select value={filters.profile} onValueChange={(profile) => change({ profile_id: profile === ALL ? undefined : profile })}>
             <SelectTrigger id="journal-profile" className="w-full">
               <SelectValue />
             </SelectTrigger>
@@ -128,7 +148,7 @@ export default function JournalPage() {
           </Select>
         </Field>
         {filtered && (
-          <Button type="button" variant="ghost" onClick={() => change({ from: undefined, to: undefined, action: ALL, profile: ALL })}>
+          <Button type="button" variant="ghost" onClick={() => change({ from: undefined, to: undefined, action: undefined, profile_id: undefined })}>
             <XIcon data-icon="inline-start" />
             Réinitialiser
           </Button>
@@ -196,7 +216,7 @@ function EntryRow({ entry }: { entry: Entry }) {
   const hasDetails = Object.keys(entry.details).length > 0
   return (
     <TableRow>
-      <TableCell className="whitespace-nowrap tabular-nums">{format(new Date(entry.at), 'dd/MM/yyyy HH:mm:ss', { locale: fr })}</TableCell>
+      <TableCell className="whitespace-nowrap tabular-nums">{dateTime.format(new Date(entry.at))}</TableCell>
       <TableCell>{author}</TableCell>
       <TableCell>
         <span className="font-medium">{actionLabel(entry.action)}</span>
@@ -233,10 +253,11 @@ function DateFilter({ label, value, onChange, disabled }: { label: string; value
       <div className="flex gap-1">
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <Button type="button" variant="outline" aria-labelledby={`date-${label}`} className="flex-1 justify-start font-normal tabular-nums">
+            {/* A native button: shadcn's Button does not forward `ref` under React 18, which Popper needs. */}
+            <button type="button" aria-labelledby={`date-${label}`} className={buttonVariants({ variant: 'outline', className: 'flex-1 justify-start font-normal tabular-nums' })}>
               <CalendarIcon data-icon="inline-start" />
-              {value ? format(value, 'd MMM yyyy', { locale: fr }) : 'Choisir'}
-            </Button>
+              {value ? shortDay.format(value) : 'Choisir'}
+            </button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
@@ -252,7 +273,7 @@ function DateFilter({ label, value, onChange, disabled }: { label: string; value
           </PopoverContent>
         </Popover>
         {value && (
-          <Button type="button" variant="ghost" size="icon" aria-label={`Effacer la date « ${label} »`} onClick={() => onChange(undefined)}>
+          <Button type="button" variant="ghost" size="icon" aria-label={`Effacer la date « ${label} »`} onClick={() => onChange(undefined)}>
             <XIcon />
           </Button>
         )}

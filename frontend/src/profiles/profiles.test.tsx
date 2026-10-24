@@ -93,7 +93,7 @@ describe('header profile switcher', () => {
     expect(trigger).toHaveTextContent('Claire Martin')
     fireEvent.keyDown(trigger, { key: 'Enter' })
     fireEvent.click(await screen.findByRole('menuitemradio', { name: 'Paul Durand' }))
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Profil actif : Paul Durand'))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Profil actif\u00a0: Paul Durand'))
     const post = calls.find((c) => c.key === 'POST /session/profile')!
     expect(post.body).toEqual({ profile_id: 'p2' }) // no password field anywhere
     expect(queryClient.getQueryState(['forms'])?.isInvalidated).toBe(true)
@@ -152,7 +152,7 @@ describe('Profils page (admin)', () => {
     expect(calls.some((c) => c.key === 'POST /profiles')).toBe(false)
     fireEvent.change(within(dialog).getByLabelText('Nom affiché'), { target: { value: 'Léa Bernard' } })
     fireEvent.change(within(dialog).getByLabelText('Initiales'), { target: { value: 'LB' } })
-    fireEvent.click(within(dialog).getByRole('radio', { name: '#2b6cb0' }))
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Bleu' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Créer le profil' }))
     expect(await within(dialog).findByText('Les initiales doivent comporter de 1 à 3 caractères.')).toBeInTheDocument()
     expect(calls.find((c) => c.key === 'POST /profiles')!.body).toEqual({ display_name: 'Léa Bernard', initials: 'LB', color: '#2b6cb0' })

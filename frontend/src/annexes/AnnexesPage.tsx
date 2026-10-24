@@ -1,7 +1,6 @@
 import { ExternalLinkIcon, PencilIcon, SearchIcon, Trash2Icon } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
+import { useSearchParams } from 'react-router'
 import { hasUnstorable, UNSTORABLE_MESSAGE } from '@/admin/validation'
 import { PageHeader } from '@/components/PageHeader'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -15,16 +14,20 @@ import { type Annex, annexFileUrl, formatSize, useAnnexes } from '@/annexes/api'
 import { DeleteAnnexDialog, EditAnnexDialog } from '@/annexes/AnnexDialogs'
 import { AnnexUpload } from '@/annexes/AnnexUpload'
 
+const longDay = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' })
+
 /** Annexes for both roles: search, open the PDF; the admin also uploads, edits and deletes. */
 export default function AnnexesPage() {
   const isAdmin = useMe().data?.role === 'admin'
-  const [search, setSearch] = useState('')
-  const [q, setQ] = useState('')
+  // The search term lives in the URL (?q=), debounced while typing.
+  const [params, setParams] = useSearchParams()
+  const q = params.get('q') ?? ''
+  const [search, setSearch] = useState(q)
   const invalid = hasUnstorable(search)
   useEffect(() => {
-    const timer = setTimeout(() => setQ(invalid ? '' : search.trim()), 250)
+    const timer = setTimeout(() => setParams(invalid || !search.trim() ? {} : { q: search.trim() }, { replace: true }), 250)
     return () => clearTimeout(timer)
-  }, [search, invalid])
+  }, [search, invalid, setParams])
   const annexes = useAnnexes(q)
   const [editing, setEditing] = useState<Annex>()
   const [deleting, setDeleting] = useState<Annex>()
@@ -70,17 +73,17 @@ export default function AnnexesPage() {
                     <span className="sr-only">(PDF, nouvel onglet)</span>
                   </a>
                   <p className="text-xs text-muted-foreground tabular-nums">
-                    {annex.filename} · {formatSize(annex.size)} · ajoutée le {format(new Date(annex.created_at), 'd MMMM yyyy', { locale: fr })}
+                    {annex.filename} · {formatSize(annex.size)} · ajoutée le {longDay.format(new Date(annex.created_at))}
                   </p>
                   {annex.excerpt && <p className="line-clamp-2 text-sm text-pretty text-muted-foreground">{annex.excerpt}</p>}
                 </div>
                 {isAdmin && (
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" onClick={() => setEditing(annex)} aria-label={`Modifier ${annex.title}`}>
+                    <Button variant="ghost" onClick={() => setEditing(annex)} aria-label={`Modifier ${annex.title}`}>
                       <PencilIcon data-icon="inline-start" />
                       Modifier
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setDeleting(annex)} aria-label={`Supprimer ${annex.title}`}>
+                    <Button variant="ghost" onClick={() => setDeleting(annex)} aria-label={`Supprimer ${annex.title}`}>
                       <Trash2Icon data-icon="inline-start" />
                       Supprimer
                     </Button>

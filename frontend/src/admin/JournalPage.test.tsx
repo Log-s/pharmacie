@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import JournalPage from '@/admin/JournalPage'
 import { queryClient } from '@/lib/api'
@@ -26,7 +27,9 @@ describe('Journal page', () => {
     )
     render(
       <QueryClientProvider client={queryClient}>
-        <JournalPage />
+        <MemoryRouter>
+          <JournalPage />
+        </MemoryRouter>
       </QueryClientProvider>,
     )
     expect(await screen.findByRole('cell', { name: 'Changement de profil' })).toBeInTheDocument()
