@@ -51,7 +51,7 @@ function NewTemplate() {
     mutationFn: () => api<TemplateSummary>('/templates', { method: 'POST', json: { name: name.trim() } }),
     onSuccess: (template) => {
       queryClient.invalidateQueries({ queryKey: templatesKey })
-      toast.success(`Template « ${template.name} » créé : construisez sa structure, puis publiez-le.`)
+      toast.success(`Template « ${template.name} » créé\u00a0: construisez sa structure, puis publiez-le.`)
       navigate(`/templates/${template.id}`, { replace: true })
     },
     onError: (e) => {
@@ -68,7 +68,7 @@ function NewTemplate() {
   }
   return (
     <>
-      <PageHeader title="Nouveau template" description="Nommez le modèle de fiche ; vous construirez ensuite sa structure avec l'aperçu à côté." />
+      <PageHeader title="Nouveau template" description="Nommez le modèle de fiche ; vous construirez ensuite sa structure avec l'aperçu à côté." />
       <Card className="max-w-lg">
         <CardContent>
           <form id="new-template" onSubmit={submit} noValidate>
@@ -166,7 +166,7 @@ function Editor({ template }: { template: TemplateDetail }) {
   const publish = useMutation({
     mutationFn: (body: TemplateTree) => api<TemplateVersion>(`/templates/${template.id}/versions`, { method: 'POST', json: body }),
     onSuccess: (version) => {
-      toast.success(`Version ${version.version} publiée : les nouvelles fiches l'utilisent.`)
+      toast.success(`Version ${version.version} publiée\u00a0: les nouvelles fiches l'utilisent.`)
       queryClient.invalidateQueries({ queryKey: templatesKey })
     },
     onError: (error) => {
@@ -180,7 +180,7 @@ function Editor({ template }: { template: TemplateDetail }) {
         found.general.push(cleanMessage(error.message))
         for (const node of walk(tree.nodes))
           if (node.annex_ref && error.message.includes(node.annex_ref.annex_id))
-            addIssue(found, node.id, { rest: ['annex_ref'], message: "Cette annexe n'existe plus : choisissez-en une autre ou retirez-la." })
+            addIssue(found, node.id, { rest: ['annex_ref'], message: "Cette annexe n'existe plus\u00a0: choisissez-en une autre ou retirez-la." })
       }
       setServerIssues(found)
       const first = found.byNode.keys().next().value
@@ -215,7 +215,7 @@ function Editor({ template }: { template: TemplateDetail }) {
     <>
       <PageHeader
         title={template.name}
-        description="Construisez la structure de la fiche ; l'aperçu montre ce que l'équipe remplira. Chaque publication crée une nouvelle version."
+        description="Construisez la structure de la fiche ; l'aperçu montre ce que l'équipe remplira. Chaque publication crée une nouvelle version."
         actions={
           <>
             <VersionHistory template={template} dirty={dirty} />
@@ -244,14 +244,14 @@ function Editor({ template }: { template: TemplateDetail }) {
         <Alert className="mb-4">
           <ArchiveIcon />
           <AlertTitle>Template archivé</AlertTitle>
-          <AlertDescription>Il n'est plus proposé pour les nouvelles fiches ; les fiches existantes restent lisibles.</AlertDescription>
+          <AlertDescription>Il n'est plus proposé pour les nouvelles fiches&nbsp;; les fiches existantes restent lisibles.</AlertDescription>
         </Alert>
       )}
       {issueCount > 0 && (
         <Alert variant="destructive" className="mb-4" id="publication-errors" tabIndex={-1}>
           <CircleAlertIcon />
           <AlertTitle>
-            {serverIssues ? 'Le serveur a refusé la publication' : `Publication impossible : ${issueCount} erreur${issueCount > 1 ? 's' : ''} à corriger`}
+            {serverIssues ? 'Le serveur a refusé la publication' : `Publication impossible\u00a0: ${issueCount} erreur${issueCount > 1 ? 's' : ''} à corriger`}
           </AlertTitle>
           <AlertDescription>
             <ul className="flex flex-col gap-0.5">
@@ -261,7 +261,7 @@ function Editor({ template }: { template: TemplateDetail }) {
               {[...issues.byNode].map(([nodeId, list]) => (
                 <li key={nodeId}>
                   <button type="button" className="text-left underline underline-offset-4 hover:no-underline" onClick={() => setSelectedId(nodeId)}>
-                    « {findNode(tree, nodeId)?.label.trim() || 'Sans libellé'} » : {list.map((i) => i.message).join(' ')}
+                    « {findNode(tree, nodeId)?.label.trim() || 'Sans libellé'} »&nbsp;: {list.map((i) => i.message).join(' ')}
                   </button>
                 </li>
               ))}
@@ -358,7 +358,7 @@ function Editor({ template }: { template: TemplateDetail }) {
       <AlertDialog open={blocker.state === 'blocked'} onOpenChange={(open) => !open && blocker.reset?.()}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Quitter sans publier ?</AlertDialogTitle>
+            <AlertDialogTitle>Quitter sans publier&nbsp;?</AlertDialogTitle>
             <AlertDialogDescription>Les modifications non publiées de ce template seront perdues.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -378,7 +378,7 @@ function VersionHistory({ template, dirty }: { template: TemplateDetail; dirty: 
   const restore = useMutation({
     mutationFn: (version: number) => api<TemplateVersion>(`/templates/${template.id}/versions/${version}/restore`, { method: 'POST' }),
     onSuccess: (created, from) => {
-      toast.success(`Version ${from} restaurée : publiée comme version ${created.version}.`)
+      toast.success(`Version ${from} restaurée\u00a0: publiée comme version ${created.version}.`)
       setOpen(false)
       queryClient.invalidateQueries({ queryKey: templatesKey })
     },
@@ -395,7 +395,7 @@ function VersionHistory({ template, dirty }: { template: TemplateDetail; dirty: 
         <DialogHeader>
           <DialogTitle>Historique des versions</DialogTitle>
           <DialogDescription>
-            Les versions sont figées. Restaurer republie l'ancienne structure comme nouvelle version ; les fiches existantes gardent la leur.
+            Les versions sont figées. Restaurer republie l'ancienne structure comme nouvelle version&nbsp;; les fiches existantes gardent la leur.
           </DialogDescription>
         </DialogHeader>
         {dirty && <p className="text-sm text-warning">Restaurer remplace aussi vos modifications non publiées.</p>}
@@ -449,7 +449,7 @@ function ArchiveButton({ template }: { template: TemplateDetail }) {
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Archiver « {template.name} » ?</AlertDialogTitle>
+          <AlertDialogTitle>Archiver « {template.name} »&nbsp;?</AlertDialogTitle>
           <AlertDialogDescription>
             Il ne sera plus proposé pour les nouvelles fiches. Les fiches existantes restent consultables et modifiables. Il n'est pas possible de le
             désarchiver.

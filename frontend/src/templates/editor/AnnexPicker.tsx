@@ -32,7 +32,7 @@ export function AnnexPicker({ id, value, onChange }: { id: string; value: string
         <div className="flex items-center gap-2 rounded-lg border px-2.5 py-1 text-sm">
           <FileTextIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
           <span className={missing ? 'flex-1 truncate text-destructive' : 'flex-1 truncate'}>
-            {missing ? 'Annexe supprimée : choisissez-en une autre' : (current.data?.title ?? 'Chargement…')}
+            {missing ? 'Annexe supprimée\u00a0: choisissez-en une autre' : (current.data?.title ?? 'Chargement…')}
           </span>
           <Button variant="ghost" size="icon-xs" aria-label="Retirer l'annexe" onClick={() => onChange(null)}>
             <XIcon />
@@ -60,7 +60,7 @@ export function AnnexPicker({ id, value, onChange }: { id: string; value: string
             <p role="alert" className="text-sm text-destructive">{results.error.message}</p>
           ) : results.data.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {q ? 'Aucune annexe ne correspond à cette recherche.' : 'Aucune annexe : ajoutez-en depuis le menu Annexes.'}
+              {q ? 'Aucune annexe ne correspond à cette recherche.' : 'Aucune annexe\u00a0: ajoutez-en depuis le menu Annexes.'}
             </p>
           ) : (
             <ul className="-mx-1 flex max-h-64 flex-col overflow-y-auto">

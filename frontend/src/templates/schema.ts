@@ -38,7 +38,7 @@ export function* walk(
   }
 }
 
-const id = z.guid({ error: 'Identifiant invalide : un UUID est attendu.' })
+const id = z.guid({ error: 'Identifiant invalide\u00a0: un UUID est attendu.' })
 const label = z.string().trim().min(1, 'Le libellé est obligatoire.').max(200, 'Le libellé dépasse 200 caractères.')
 const children = z.array(z.lazy(() => templateNode)).default([])
 const base = {
@@ -95,7 +95,7 @@ export const templateTree = z.strictObject({ nodes: z.array(templateNode) }).sup
     const ids: [string, Path][] = [[node.id, [...path, 'id']]]
     if (isGroup(node)) node.options.forEach((opt, j) => ids.push([opt.id, [...path, 'options', j, 'id']]))
     for (const [itemId, itemPath] of ids) {
-      if (seen.has(itemId)) ctx.addIssue({ code: 'custom', path: itemPath, message: `Identifiant en double : ${itemId}.` })
+      if (seen.has(itemId)) ctx.addIssue({ code: 'custom', path: itemPath, message: `Identifiant en double\u00a0: ${itemId}.` })
       seen.add(itemId)
     }
   }

@@ -59,7 +59,7 @@ export function TreeEditor(props: TreeProps) {
     onChange(removeNode(tree, node.id))
     if (props.selectedId && subtreeIds(node).has(props.selectedId)) onSelect(null)
   }
-  const askRemove = (node: TemplateNode) => (subtreeIds(node).size > 1 + (isGroup(node) ? node.options.length : 0) ? setRemoving(node) : remove(node))
+  const askRemove = (node: TemplateNode) => setRemoving(node)
 
   const onDragEnd = ({ active: dragged, over }: DragEndEvent) => {
     setActive(null)
@@ -82,7 +82,7 @@ export function TreeEditor(props: TreeProps) {
         accessibility={{
           screenReaderInstructions: {
             draggable:
-              'Pour déplacer ce champ : Espace ou Entrée pour le saisir, flèches pour choisir sa place, Espace pour le déposer, Échap pour annuler.',
+              'Pour déplacer ce champ\u00a0: Espace ou Entrée pour le saisir, flèches pour choisir sa place, Espace pour le déposer, Échap pour annuler.',
           },
           announcements: {
             onDragStart: ({ active: a }) => `Champ « ${name(findNode(tree, String(a.id)) ?? { label: '' })} » saisi.`,
@@ -105,9 +105,12 @@ export function TreeEditor(props: TreeProps) {
       <AlertDialog open={!!removing} onOpenChange={(open) => !open && setRemoving(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer « {removing && name(removing)} » ?</AlertDialogTitle>
+            <AlertDialogTitle>Supprimer « {removing && name(removing)} »&nbsp;?</AlertDialogTitle>
             <AlertDialogDescription>
-              Les champs qu'il contient sont supprimés avec lui. Rien n'est enregistré avant la publication.
+              {removing && subtreeIds(removing).size > 1 + (isGroup(removing) ? removing.options.length : 0)
+                ? "Les champs qu'il contient sont supprimés avec lui. "
+                : ''}
+              Le template publié ne change qu'à la prochaine publication.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -163,7 +166,7 @@ function Slot({ container, index, empty }: { container: string; index: number; e
           isOver && 'border-primary bg-accent text-foreground',
         )}
       >
-        Vide : glissez un champ ici ou ajoutez-en un.
+        Vide&nbsp;: glissez un champ ici ou ajoutez-en un.
       </div>
     )
   return (
@@ -202,7 +205,7 @@ function NodeBlock({ node, container, index, count }: { node: TemplateNode; cont
           type="button"
           onClick={() => onSelect(node.id)}
           aria-pressed={selected}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1.5 py-1 text-left outline-none hover:bg-muted aria-pressed:hover:bg-transparent focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <TypeIcon type={node.type} />
           <span className="truncate text-sm font-medium">{label}</span>
@@ -213,8 +216,10 @@ function NodeBlock({ node, container, index, count }: { node: TemplateNode; cont
             </span>
           )}
           {node.required && <span className="sr-only">, obligatoire</span>}
-          {node.annex_ref && <PaperclipIcon aria-label="annexe liée" className="size-3.5 shrink-0 text-muted-foreground" />}
-          {invalid && <CircleAlertIcon aria-label="contient une erreur" className="ml-auto size-4 shrink-0 text-destructive" />}
+          {node.annex_ref && <PaperclipIcon aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" />}
+          {node.annex_ref && <span className="sr-only">, annexe liée</span>}
+          {invalid && <CircleAlertIcon aria-hidden="true" className="ml-auto size-4 shrink-0 text-destructive" />}
+          {invalid && <span className="sr-only">, contient une erreur</span>}
         </button>
         <Button variant="ghost" size="icon-sm" aria-label={`Monter « ${label} »`} disabled={index === 0} onClick={() => onChange(moveNode(tree, node.id, container, index - 1))}>
           <ArrowUpIcon />
@@ -241,7 +246,7 @@ function NodeBlock({ node, container, index, count }: { node: TemplateNode; cont
         node.options.map((option) => (
           <div key={option.id} className="ml-3.5 flex flex-col gap-1 border-l-2 pt-1 pl-3">
             <p className="text-xs text-muted-foreground">
-              Si « {name(option)} » {node.type === 'checkbox_group' ? 'est coché' : 'est choisi'} :
+              Si « {name(option)} » {node.type === 'checkbox_group' ? 'est coché' : 'est choisi'}&nbsp;:
             </p>
             <Container id={option.id} nodes={option.children} label={`« ${label} » si « ${name(option)} »`} />
           </div>

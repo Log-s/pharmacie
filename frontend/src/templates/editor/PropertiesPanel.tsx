@@ -1,7 +1,18 @@
+import { useState } from 'react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { ArrowDownIcon, ArrowUpIcon, PlusIcon, XIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegend, FieldSet, FieldTitle } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
@@ -35,6 +46,7 @@ export function PropertiesPanel({
   const labelErrors = on('label')
 
   const setOptions = (options: TemplateOption[]) => patch({ options } as Partial<TemplateNode>)
+  const [removingOption, setRemovingOption] = useState<TemplateOption | null>(null)
 
   return (
     <div className="flex flex-col gap-5">
@@ -106,7 +118,7 @@ export function PropertiesPanel({
                 aria-invalid={on('max_length').length > 0 || undefined}
                 aria-describedby="prop-max-length-hint"
               />
-              <FieldDescription id="prop-max-length-hint">En caractères. Vide : pas de limite.</FieldDescription>
+              <FieldDescription id="prop-max-length-hint">En caractères. Vide&nbsp;: pas de limite.</FieldDescription>
               <FieldError>{on('max_length').join(' ')}</FieldError>
             </Field>
           </>
@@ -129,6 +141,7 @@ export function PropertiesPanel({
                     <div className="flex items-center gap-0.5">
                       <Input
                         aria-label={`Libellé de l'option ${index + 1}`}
+                        name={`option-${index + 1}`}
                         value={option.label}
                         onChange={(event) => setOptions(node.options.map((o) => (o.id === option.id ? { ...o, label: event.target.value } : o)))}
                         aria-invalid={!!error || undefined}
@@ -152,7 +165,7 @@ export function PropertiesPanel({
                         size="icon-sm"
                         aria-label={`Supprimer l'option ${index + 1}`}
                         disabled={node.options.length === 1}
-                        onClick={() => setOptions(node.options.filter((o) => o.id !== option.id))}
+                        onClick={() => (option.children.length ? setRemovingOption(option) : setOptions(node.options.filter((o) => o.id !== option.id)))}
                       >
                         <XIcon />
                       </Button>
@@ -174,10 +187,10 @@ export function PropertiesPanel({
           </FieldSet>
         )}
 
-        <Field>
-          <FieldLabel htmlFor="prop-annex">Annexe</FieldLabel>
+        <Field aria-labelledby="prop-annex-title">
+          <FieldTitle id="prop-annex-title">Annexe</FieldTitle>
           <AnnexPicker id="prop-annex" value={node.annex_ref?.annex_id ?? null} onChange={(annexId) => patch({ annex_ref: annexId ? { annex_id: annexId } : null })} />
-          <FieldDescription>Une icône « i » suit alors le libellé : extrait au survol, PDF au clic.</FieldDescription>
+          <FieldDescription>Une icône « i » suit alors le libellé&nbsp;: extrait au survol, PDF au clic.</FieldDescription>
         </Field>
 
         <Field>
@@ -198,6 +211,24 @@ export function PropertiesPanel({
           </Select>
           <FieldDescription id="prop-move-hint">Le champ passe à la fin de l'emplacement choisi (équivalent clavier du glisser-déposer).</FieldDescription>
         </Field>
+
+        <AlertDialog open={!!removingOption} onOpenChange={(open) => !open && setRemovingOption(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Supprimer l'option « {removingOption?.label.trim() || 'Sans libellé'} »{'\u00a0'}?</AlertDialogTitle>
+              <AlertDialogDescription>Ses champs conditionnels sont supprimés avec elle.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={() => isGroup(node) && removingOption && setOptions(node.options.filter((o) => o.id !== removingOption.id))}
+              >
+                Supprimer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {other.length > 0 && (
           <div role="alert" className="flex flex-col gap-1 text-sm text-destructive">

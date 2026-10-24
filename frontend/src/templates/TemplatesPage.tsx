@@ -44,7 +44,7 @@ export default function TemplatesPage() {
     <>
       <PageHeader
         title="Templates"
-        description="Les modèles de fiches. Chaque publication crée une version figée ; une fiche garde la version avec laquelle elle a été créée."
+        description="Les modèles de fiches. Chaque publication crée une version figée ; une fiche garde la version avec laquelle elle a été créée."
         actions={
           <Button asChild>
             <Link to="/templates/nouveau">
@@ -72,7 +72,7 @@ export default function TemplatesPage() {
               <FileStackIcon />
             </EmptyMedia>
             <EmptyTitle>Aucun template</EmptyTitle>
-            <EmptyDescription>Créez le premier modèle de fiche : l'équipe pourra ensuite remplir des fiches à partir de lui.</EmptyDescription>
+            <EmptyDescription>Créez le premier modèle de fiche&nbsp;: l'équipe pourra ensuite remplir des fiches à partir de lui.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button asChild>
@@ -149,12 +149,12 @@ export default function TemplatesPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {confirm?.kind === 'archive' ? 'Archiver' : 'Supprimer'} « {confirm?.template.name} » ?
+              {confirm?.kind === 'archive' ? 'Archiver' : 'Supprimer'} « {confirm?.template.name} »&nbsp;?
             </AlertDialogTitle>
             <AlertDialogDescription>
               {confirm?.kind === 'archive'
-                ? "Il ne sera plus proposé pour les nouvelles fiches ; les fiches existantes restent consultables. Il n'est pas possible de le désarchiver."
-                : 'Le template et toutes ses versions sont supprimés définitivement. Si des fiches l’utilisent, la suppression est refusée : archivez-le plutôt.'}
+                ? "Il ne sera plus proposé pour les nouvelles fiches\u00a0; les fiches existantes restent consultables. Il n'est pas possible de le désarchiver."
+                : 'Le template et toutes ses versions sont supprimés définitivement. Si des fiches l’utilisent, la suppression est refusée\u00a0: archivez-le plutôt.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

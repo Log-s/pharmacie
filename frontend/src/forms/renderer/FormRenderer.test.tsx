@@ -186,7 +186,7 @@ describe('FormRenderer (edit)', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Écart constaté' }))
     fireEvent.change(screen.getByLabelText(/Description/), { target: { value: 'cassé' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Écart constaté' }))
-    const dialog = await screen.findByRole('alertdialog', { name: 'Effacer les champs masqués ?' })
+    const dialog = await screen.findByRole('alertdialog', { name: /^Effacer les champs masqués\s\?$/ })
     expect(dialog).toHaveTextContent('« Description »')
     fireEvent.click(within(dialog).getByRole('button', { name: 'Garder mon choix précédent' }))
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())

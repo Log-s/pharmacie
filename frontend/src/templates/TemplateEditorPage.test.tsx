@@ -119,6 +119,6 @@ describe('Template editor', () => {
     fireEvent.change(screen.getByLabelText('Libellé'), { target: { value: 'Contrôles du jour' } })
     fireEvent.click(screen.getByRole('button', { name: 'Publier la version 2' }))
     expect(await screen.findByText('Le serveur a refusé la publication')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '« Contrôles du jour » : Libellé refusé.' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^« Contrôles du jour »\s: Libellé refusé\.$/ })).toBeInTheDocument()
   })
 })

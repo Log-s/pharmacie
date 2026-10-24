@@ -111,7 +111,7 @@ function EditForm({ tree, defaultValue, onSubmit, onChange, errors, id, headingL
       const message =
         reference === ''
           ? isNew ? undefined : 'La référence est obligatoire.'
-          : isValidReference(reference) ? undefined : `Format attendu : ${REFERENCE_EXAMPLE} (le préfixe, un tiret puis 6 chiffres).`
+          : isValidReference(reference) ? undefined : `Format attendu\u00a0: ${REFERENCE_EXAMPLE} (le préfixe, un tiret puis 6 chiffres).`
       if (message) found.reference = { type: 'validate', message }
     }
     return Object.keys(found).length ? { values: {}, errors: found } : { values, errors: {} }
@@ -173,9 +173,9 @@ function EditForm({ tree, defaultValue, onSubmit, onChange, errors, id, headingL
       <AlertDialog open={!!pending} onOpenChange={(open) => !open && setPending(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Effacer les champs masqués ?</AlertDialogTitle>
+            <AlertDialogTitle>Effacer les champs masqués&nbsp;?</AlertDialogTitle>
             <AlertDialogDescription>
-              Ce choix masque {pending?.cleared.length === 1 ? 'un champ déjà rempli' : 'des champs déjà remplis'} :{' '}
+              Ce choix masque {pending?.cleared.length === 1 ? 'un champ déjà rempli' : 'des champs déjà remplis'}&nbsp;:{' '}
               {pending?.cleared.map((n) => `« ${nodeLabel(n)} »`).join(', ')}. {pending?.cleared.length === 1 ? 'Sa valeur sera effacée' : 'Leurs valeurs seront effacées'}.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -322,7 +322,7 @@ function ValueField({ node }: { node: TemplateNode }) {
   const errorId = `${id}-erreur`
   const counterId = `${id}-compteur`
   const prefill = !isNew ? undefined : node.type === 'date' ? today : node.type === 'author' ? activeProfileId : undefined
-  const help = node.type === 'reference' && !node.help ? `Proposée automatiquement, modifiable. Format : ${REFERENCE_EXAMPLE}.` : node.help
+  const help = node.type === 'reference' && !node.help ? `Proposée automatiquement, modifiable. Format\u00a0: ${REFERENCE_EXAMPLE}.` : node.help
 
   return (
     <Controller

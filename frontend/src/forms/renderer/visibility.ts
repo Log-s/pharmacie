@@ -67,7 +67,7 @@ export function validateData(nodes: TemplateNode[], data: FormData): Record<stri
         errors[node.id] =
           node.type === 'checkbox_group' ? 'Cochez au moins une option.' : isGroup(node) ? 'Choisissez une option.' : 'Ce champ est obligatoire.'
     } else if (typeof value === 'string' && UNSTORABLE.test(value)) {
-      errors[node.id] = 'Ce texte contient un caractère invalide : retirez-le puis réessayez.'
+      errors[node.id] = 'Ce texte contient un caractère invalide\u00a0: retirez-le puis réessayez.'
     } else if (node.type === 'text' && node.max_length && typeof value === 'string' && value.length > node.max_length) {
       errors[node.id] = `${node.max_length} caractères au maximum (${value.length} saisis).`
     }
