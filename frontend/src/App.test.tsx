@@ -90,7 +90,7 @@ describe('role guards and navigation', () => {
     expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
     await waitFor(() => expect(router.state.location.state).toBeNull())
     expect(router.state.location.pathname).toBe('/connexion')
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/auth/logout')
+    expect(fetchMock.mock.calls.map(([url]) => url)).toContain('/api/auth/logout') // the fiches list also calls the API
     expect(queryClient.getQueryData(meQueryKey)).toBeNull()
   })
 

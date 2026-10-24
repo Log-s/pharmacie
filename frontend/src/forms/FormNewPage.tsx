@@ -27,7 +27,7 @@ export default function FormNewPage() {
         description={chosen ? `${chosen.name}, version ${chosen.version.version}. La référence est proposée automatiquement.` : 'Choisissez le template à remplir.'}
       />
       <div className="max-w-2xl">
-        {templates.isPending && <Skeleton className="h-32 w-full" role="status" aria-busy="true" aria-label="Chargement des templates…" />}
+        {templates.isPending && <Skeleton className="h-32 w-full" aria-busy="true" aria-label="Chargement des templates…" />}
         {templates.isError && (
           <Alert variant="destructive" role="alert">
             <AlertTitle>Templates indisponibles</AlertTitle>

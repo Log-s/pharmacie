@@ -50,7 +50,7 @@ export default function FormViewPage() {
     onError: (error) => toast.error(error.message),
   })
 
-  if (form.isPending) return <Skeleton className="h-64 w-full max-w-2xl" role="status" aria-busy="true" aria-label="Chargement de la fiche…" />
+  if (form.isPending) return <Skeleton className="h-64 w-full max-w-2xl" aria-busy="true" aria-label="Chargement de la fiche…" />
   if (form.isError)
     return form.error instanceof ApiError && form.error.status === 404 ? (
       <StatusPage title="Fiche introuvable" description="Cette fiche n'existe pas ou a été supprimée." />

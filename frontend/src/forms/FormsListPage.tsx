@@ -108,7 +108,7 @@ export default function FormsListPage() {
         </div>
       </form>
 
-      {forms.isPending && <Skeleton className="h-64 w-full" role="status" aria-busy="true" aria-label="Chargement des fiches…" />}
+      {forms.isPending && <Skeleton className="h-64 w-full" aria-busy="true" aria-label="Chargement des fiches…" />}
       {forms.isError && (
         <Alert variant="destructive" role="alert">
           <AlertTitle>Fiches indisponibles</AlertTitle>
