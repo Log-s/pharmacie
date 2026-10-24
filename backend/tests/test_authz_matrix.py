@@ -188,3 +188,16 @@ def test_request_ctx_attributes_the_actor(make_client, profile_factory):
         "role": "admin",
         "profile": "None",
     }
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"password": NEW_USER_PW, "role": "admin"},
+        {"password": NEW_USER_PW * 50},
+    ],
+)
+def test_admin_user_password_validation_error_does_not_echo_it(admin_client, body):
+    response = admin_client.post("/api/admin/user-password", json=body)
+    assert response.status_code == 422
+    assert NEW_USER_PW not in response.text

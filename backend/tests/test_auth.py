@@ -279,3 +279,18 @@ def test_rate_limiter_window():
     assert ratelimit.allow("a", 1) and not ratelimit.allow("a", 1)
     assert ratelimit.allow("b", 1)
     assert ratelimit.allow("a", 1, window=0)  # hits older than the window are forgotten
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"password": PASSWORDS["admin"]},  # missing role
+        {"role": "root", "password": PASSWORDS["admin"]},
+        {"role": "admin", "password": "orbite-cactus-" * 80},  # over max_length
+    ],
+)
+def test_login_validation_error_does_not_echo_the_password(client, body):
+    response = client.post("/api/auth/login", json=body)
+    assert response.status_code == 422
+    assert body["password"] not in response.text
+    assert {"type", "loc", "msg"} == set(response.json()["detail"][0])
