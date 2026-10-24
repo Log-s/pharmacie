@@ -25,7 +25,7 @@ def list_entries(
     if date_from:
         where.append(ActivityLog.at >= datetime.combine(date_from, time.min, UTC))
     if date_to:
-        # time.max (23:59:59.999999) is the last microsecond; `+ 1 day` would overflow at 9999-12-31.
+        # time.max = last microsecond of the day; `+ 1 day` would overflow at 9999-12-31.
         where.append(ActivityLog.at <= datetime.combine(date_to, time.max, UTC))
     if action:
         where.append(ActivityLog.action == action)
