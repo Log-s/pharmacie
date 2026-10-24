@@ -1,0 +1,610 @@
+{
+  "$defs": {
+    "AnnexRef": {
+      "additionalProperties": false,
+      "properties": {
+        "annex_id": {
+          "format": "uuid",
+          "title": "Annex Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "annex_id"
+      ],
+      "title": "AnnexRef",
+      "type": "object"
+    },
+    "AuthorField": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "annex_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnexRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "author",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "title": "AuthorField",
+      "type": "object"
+    },
+    "Category": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "annex_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnexRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "category",
+          "title": "Type",
+          "type": "string"
+        },
+        "children": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "author": "#/$defs/AuthorField",
+                "category": "#/$defs/Category",
+                "checkbox_group": "#/$defs/CheckboxGroup",
+                "date": "#/$defs/DateField",
+                "radio_group": "#/$defs/RadioGroup",
+                "reference": "#/$defs/ReferenceField",
+                "text": "#/$defs/TextField"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Category"
+              },
+              {
+                "$ref": "#/$defs/CheckboxGroup"
+              },
+              {
+                "$ref": "#/$defs/RadioGroup"
+              },
+              {
+                "$ref": "#/$defs/DateField"
+              },
+              {
+                "$ref": "#/$defs/AuthorField"
+              },
+              {
+                "$ref": "#/$defs/ReferenceField"
+              },
+              {
+                "$ref": "#/$defs/TextField"
+              }
+            ]
+          },
+          "title": "Children",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "title": "Category",
+      "type": "object"
+    },
+    "CheckboxGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "annex_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnexRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "checkbox_group",
+          "title": "Type",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/Option"
+          },
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type",
+        "options"
+      ],
+      "title": "CheckboxGroup",
+      "type": "object"
+    },
+    "DateField": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "annex_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnexRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "date",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "title": "DateField",
+      "type": "object"
+    },
+    "Option": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "children": {
+          "default": [],
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "author": "#/$defs/AuthorField",
+                "category": "#/$defs/Category",
+                "checkbox_group": "#/$defs/CheckboxGroup",
+                "date": "#/$defs/DateField",
+                "radio_group": "#/$defs/RadioGroup",
+                "reference": "#/$defs/ReferenceField",
+                "text": "#/$defs/TextField"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/Category"
+              },
+              {
+                "$ref": "#/$defs/CheckboxGroup"
+              },
+              {
+                "$ref": "#/$defs/RadioGroup"
+              },
+              {
+                "$ref": "#/$defs/DateField"
+              },
+              {
+                "$ref": "#/$defs/AuthorField"
+              },
+              {
+                "$ref": "#/$defs/ReferenceField"
+              },
+              {
+                "$ref": "#/$defs/TextField"
+              }
+            ]
+          },
+          "title": "Children",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "Option",
+      "type": "object"
+    },
+    "RadioGroup": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "annex_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnexRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "radio_group",
+          "title": "Type",
+          "type": "string"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/Option"
+          },
+          "minItems": 1,
+          "title": "Options",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type",
+        "options"
+      ],
+      "title": "RadioGroup",
+      "type": "object"
+    },
+    "ReferenceField": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "annex_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnexRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "reference",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "title": "ReferenceField",
+      "type": "object"
+    },
+    "TextField": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "required": {
+          "default": false,
+          "title": "Required",
+          "type": "boolean"
+        },
+        "help": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Help"
+        },
+        "annex_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AnnexRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "text",
+          "title": "Type",
+          "type": "string"
+        },
+        "multiline": {
+          "default": false,
+          "title": "Multiline",
+          "type": "boolean"
+        },
+        "max_length": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Length"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "type"
+      ],
+      "title": "TextField",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Root of `schema_json`: `{\"nodes\": [...]}`.",
+  "properties": {
+    "nodes": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "author": "#/$defs/AuthorField",
+            "category": "#/$defs/Category",
+            "checkbox_group": "#/$defs/CheckboxGroup",
+            "date": "#/$defs/DateField",
+            "radio_group": "#/$defs/RadioGroup",
+            "reference": "#/$defs/ReferenceField",
+            "text": "#/$defs/TextField"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/Category"
+          },
+          {
+            "$ref": "#/$defs/CheckboxGroup"
+          },
+          {
+            "$ref": "#/$defs/RadioGroup"
+          },
+          {
+            "$ref": "#/$defs/DateField"
+          },
+          {
+            "$ref": "#/$defs/AuthorField"
+          },
+          {
+            "$ref": "#/$defs/ReferenceField"
+          },
+          {
+            "$ref": "#/$defs/TextField"
+          }
+        ]
+      },
+      "title": "Nodes",
+      "type": "array"
+    }
+  },
+  "required": [
+    "nodes"
+  ],
+  "title": "TemplateTree",
+  "type": "object"
+}
