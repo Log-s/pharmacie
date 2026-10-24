@@ -400,3 +400,29 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   `aria-describedby`, focus visible partout, `tabular-nums` sur dates et nombres. Non corrigé: `transition-all` dans `ui/button`.
 - Aucune variable d'environnement, aucune migration, aucun changement backend. `App.test.tsx` (U3) adapté: le sélecteur
   d'en-tête est un bouton, et le test de déconnexion part de `/fiches` (le Journal appelle maintenant l'API).
+
+### U8: U8: Export PDF
+
+- Route: `GET /api/forms/{form_id}/pdf` (`api/forms.py`), any authenticated session (every profile reads
+  every form, spec §3.1; admin included). 200 `application/pdf`, `Content-Disposition: attachment;
+  filename="<reference>.pdf"` (the reference format has no quote or path character). 404 unknown form,
+  401 anonymous. No body or query parameter, so no input to harden.
+- Activity: `form_export` (target `form`/<form id>, details `reference`), committed with the response.
+- Code: `app/pdf/render.py` (`render(db, form: FormOut) -> bytes`), `form.html` (Jinja2, autoescape on),
+  `form.css` (inlined into the page).
+- Content: header (template name + version, Référence, Auteur = form owner, Date = creation day in UTC,
+  `dd/mm/yyyy`); each category is a section; each field prints its label and answer(s). Only checked
+  options are printed, with their visible children nested (the `data` already holds visible nodes only).
+  Unanswered fields print « — ». Author fields print the profile name (« (profil supprimé) » when
+  archived). The `reference` node is not printed again (header). Annex ref: « Annexe : <title> », or
+  « Annexe supprimée » when the annex no longer exists.
+- Footer on every page via `@page`: « Référence : <ref> » (CSS `string-set` on the header reference) and
+  « Page X / Y » (`counter(page)` / `counter(pages)`).
+- Offline: `LocalFetcher` (a `weasyprint.urls.URLFetcher`) raises for anything that is not a `file://`
+  path under `app/pdf/` (http, https, data, other files), so rendering never touches the network.
+  Rendering is synchronous in the sync route (threadpool).
+- Fonts: system Liberation Sans (then DejaVu Sans), installed by `backend/Dockerfile` (`base` stage, so
+  also the test stage). No font file is bundled.
+- Tests: `backend/tests/test_pdf.py` (pypdf text extraction, 2-page fixture, headers, journal, injection,
+  fetcher).
+- No env var, no migration, no dependency added (WeasyPrint 70, Jinja2, pypdf were already pinned).
