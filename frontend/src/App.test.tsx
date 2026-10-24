@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { createMemoryRouter, RouterProvider } from 'react-router'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import { toast } from 'sonner'
-import type { Me } from '@/auth/session'
+import { type Me, session } from '@/auth/session'
 import { api, meQueryKey, queryClient } from '@/lib/api'
 import { routes } from '@/router'
 
@@ -31,6 +31,7 @@ const navLinks = () =>
     .map((link) => link.textContent)
 
 afterEach(() => {
+  session.loggedOut = false
   queryClient.clear()
   vi.unstubAllGlobals()
   vi.clearAllMocks()
@@ -79,6 +80,18 @@ describe('role guards and navigation', () => {
   test('unknown path shows the 404 page', () => {
     renderAt('/nulle-part', admin)
     expect(screen.getByRole('heading', { name: 'Page introuvable' })).toBeInTheDocument()
+  })
+
+  test('logout returns to the login page', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const router = renderAt('/journal', admin)
+    fireEvent.click(screen.getByRole('button', { name: 'Se déconnecter' }))
+    expect(await screen.findByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.state).toBeNull())
+    expect(router.state.location.pathname).toBe('/connexion')
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/auth/logout')
+    expect(queryClient.getQueryData(meQueryKey)).toBeNull()
   })
 
   test('a 401 from any API call during the session redirects to the login page', async () => {
@@ -134,7 +147,7 @@ describe('Compte utilisateur page', () => {
     renderAt('/compte-utilisateur', admin)
     await fill('court', 'autre')
     expect(screen.getByText('Le mot de passe doit contenir au moins 12 caractères.')).toBeInTheDocument()
-    expect(screen.getByText('Les deux saisies ne correspondent pas.')).toBeInTheDocument()
+    expect(screen.getByText(/Les deux saisies ne correspondent pas/)).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

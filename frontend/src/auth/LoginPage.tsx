@@ -1,5 +1,5 @@
 import { CircleAlertIcon, LockIcon } from 'lucide-react'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { type Location, Navigate, useLocation } from 'react-router'
 import { Brand } from '@/components/Brand'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -25,7 +25,6 @@ export default function LoginPage() {
   const from = (useLocation().state as { from?: Location } | null)?.from
   const [role, setRole] = useState<Role>('user')
   const [password, setPassword] = useState('')
-  const passwordRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     document.title = 'Connexion – Fiches de la pharmacie'
@@ -44,7 +43,7 @@ export default function LoginPage() {
       {
         onError: () => {
           setPassword('')
-          passwordRef.current?.focus()
+          document.getElementById('login-password')?.focus() // shadcn Input takes no ref under React 18
         },
       },
     )
@@ -92,7 +91,7 @@ export default function LoginPage() {
                   <FieldLabel htmlFor="login-password">Mot de passe</FieldLabel>
                   <Input
                     id="login-password"
-                    ref={passwordRef}
+                    name="password"
                     type="password"
                     autoComplete="current-password"
                     required
@@ -110,7 +109,7 @@ export default function LoginPage() {
                   </Alert>
                 )}
                 <Button type="submit" size="lg" disabled={login.isPending || !password}>
-                  {login.isPending && <Spinner data-icon="inline-start" aria-label="Connexion en cours" />}
+                  {login.isPending && <Spinner data-icon="inline-start" aria-label="Connexion en cours…" />}
                   Se connecter
                 </Button>
               </FieldGroup>

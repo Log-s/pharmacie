@@ -32,7 +32,7 @@ const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 function messageOf(status: number, detail: unknown): string {
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) return detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join(' ')
-  return `Erreur du serveur (${status}). Réessayez ; si cela persiste, prévenez l'administrateur.`
+  return `Erreur du serveur (${status}). Réessayez ; si cela persiste, prévenez l'administrateur.`
 }
 
 /**
@@ -59,7 +59,7 @@ export async function api<T = unknown>(
       body: json === undefined ? undefined : JSON.stringify(json),
     })
   } catch {
-    throw new ApiError(0, 'Serveur injoignable : vérifiez la connexion puis réessayez.')
+    throw new ApiError(0, 'Serveur injoignable : vérifiez la connexion puis réessayez.')
   }
   if (response.status === 204) return undefined as T
   const body = await response.json().catch(() => null)

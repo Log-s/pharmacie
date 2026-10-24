@@ -23,17 +23,22 @@ export default function UserAccountPage() {
       setPassword('')
       setConfirm('')
     },
-    onError: (error) => setErrors({ password: error.message }),
+    onError: (error) => {
+      setErrors({ password: error.message })
+      document.getElementById('user-password')?.focus() // shadcn Input takes no ref under React 18
+    },
   })
 
   function submit(event: FormEvent) {
     event.preventDefault()
     const next = {
       password: password.length < MIN_LENGTH ? `Le mot de passe doit contenir au moins ${MIN_LENGTH} caractères.` : undefined,
-      confirm: confirm !== password ? 'Les deux saisies ne correspondent pas.' : undefined,
+      confirm: confirm !== password ? 'Les deux saisies ne correspondent pas : ressaisissez la confirmation.' : undefined,
     }
     setErrors(next)
-    if (!next.password && !next.confirm) save.mutate()
+    if (next.password || next.confirm) {
+      document.getElementById(next.password ? 'user-password' : 'user-password-confirm')?.focus()
+    } else save.mutate()
   }
 
   const longEnough = password.length >= MIN_LENGTH
@@ -41,7 +46,7 @@ export default function UserAccountPage() {
     <>
       <PageHeader
         title="Compte utilisateur"
-        description="Le compte partagé par l'équipe. Un nouveau mot de passe ferme toutes ses sessions ouvertes ; les profils et les fiches ne changent pas."
+        description="Le compte partagé par l'équipe. Un nouveau mot de passe ferme toutes ses sessions ouvertes ; les profils et les fiches ne changent pas."
       />
       <Card className="max-w-lg">
         <CardHeader>
@@ -49,7 +54,7 @@ export default function UserAccountPage() {
             <h2 className="text-base font-semibold">Nouveau mot de passe</h2>
           </CardTitle>
           <CardDescription>
-            Au moins {MIN_LENGTH} caractères et difficile à deviner : plusieurs mots sans rapport entre eux font un bon mot de passe.
+            Au moins {MIN_LENGTH} caractères et difficile à deviner : plusieurs mots sans rapport entre eux font un bon mot de passe.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -59,6 +64,7 @@ export default function UserAccountPage() {
                 <FieldLabel htmlFor="user-password">Nouveau mot de passe</FieldLabel>
                 <Input
                   id="user-password"
+                  name="new-password"
                   type="password"
                   autoComplete="new-password"
                   value={password}
@@ -81,6 +87,7 @@ export default function UserAccountPage() {
                 <FieldLabel htmlFor="user-password-confirm">Confirmation</FieldLabel>
                 <Input
                   id="user-password-confirm"
+                  name="new-password-confirm"
                   type="password"
                   autoComplete="new-password"
                   value={confirm}
@@ -98,14 +105,14 @@ export default function UserAccountPage() {
         </CardContent>
         <CardFooter>
           <Button type="submit" form="user-password-form" disabled={save.isPending}>
-            {save.isPending && <Spinner data-icon="inline-start" aria-label="Enregistrement en cours" />}
+            {save.isPending && <Spinner data-icon="inline-start" aria-label="Enregistrement en cours…" />}
             Définir le mot de passe
           </Button>
         </CardFooter>
       </Card>
       <p className="mt-4 max-w-lg text-sm text-muted-foreground">
-        Le mot de passe administrateur se réinitialise uniquement depuis le serveur :
-        <code className="ml-1 rounded-sm bg-muted px-1 py-0.5 text-xs">python -m app.cli reset-admin-password</code>
+        Le mot de passe administrateur se réinitialise uniquement depuis le serveur, avec la commande{' '}
+        <code translate="no" className="rounded-sm bg-muted px-1 py-0.5 text-xs">python -m app.cli reset-admin-password</code>.
       </p>
     </>
   )

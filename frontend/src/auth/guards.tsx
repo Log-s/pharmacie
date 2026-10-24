@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation } from 'react-router'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusPage } from '@/components/StatusPage'
-import { type Role, useMe } from '@/auth/session'
+import { type Role, session, useMe } from '@/auth/session'
 
 /** Layout route: anonymous visitors go to the login page, coming back here afterwards. */
 export function RequireAuth() {
@@ -18,7 +18,7 @@ export function RequireAuth() {
   if (me.isError) {
     return <StatusPage title="Serveur injoignable" description={me.error.message} />
   }
-  if (!me.data) return <Navigate to="/connexion" replace state={{ from: location }} />
+  if (!me.data) return <Navigate to="/connexion" replace state={session.loggedOut ? null : { from: location }} />
   return <Outlet />
 }
 

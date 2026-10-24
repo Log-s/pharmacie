@@ -1,5 +1,5 @@
 import { LogOutIcon } from 'lucide-react'
-import { Link, NavLink, Outlet, useNavigate } from 'react-router'
+import { Link, NavLink, Outlet } from 'react-router'
 import { Brand } from '@/components/Brand'
 import { navItems } from '@/components/nav'
 import { ProfileSwitcher } from '@/components/ProfileSwitcher'
@@ -11,9 +11,9 @@ const focusRing = 'outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
 
 /** App shell: header (brand, nav, profile slot, theme, logout) around the routed page. */
 export default function App() {
-  const me = useMe().data! // rendered under RequireAuth
+  const me = useMe().data
   const logout = useLogout()
-  const navigate = useNavigate()
+  if (!me) return null // RequireAuth redirects; this covers the render right after logout
   // The user account sees no navigation until it has picked a profile.
   const items = me.role === 'admin' || me.active_profile ? navItems.filter((item) => item.roles.includes(me.role)) : []
 
@@ -56,7 +56,7 @@ export default function App() {
             <Button
               variant="ghost"
               disabled={logout.isPending}
-              onClick={() => logout.mutate(undefined, { onSettled: () => navigate('/connexion', { replace: true }) })}
+              onClick={() => logout.mutate()}
             >
               <LogOutIcon data-icon="inline-start" />
               Se déconnecter

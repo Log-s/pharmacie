@@ -44,6 +44,7 @@
 /* Light: "officine". Contrast (WCAG): encre/blouse 15.3, encre-douce/blouse 5.7, croix/blanc 5.5,
    rouge/blanc 5.6, bord de champ/blanc 3.4 (1.4.11). */
 :root {
+    color-scheme: light;
     --radius: 0.5rem;
     --background: oklch(0.985 0.004 165);        /* blouse */
     --foreground: oklch(0.25 0.025 255);         /* encre */
@@ -72,6 +73,7 @@
 /* Dark: "nuit de garde". Contrast: encre/nuit 16.1, encre-douce/nuit 7.8, croix/nuit 9.1,
    bord de champ/papier 3.1. */
 .dark {
+    color-scheme: dark;
     --background: oklch(0.185 0.014 245);        /* nuit */
     --foreground: oklch(0.95 0.006 165);
     --card: oklch(0.22 0.014 245);
@@ -103,6 +105,7 @@
   html {
     @apply font-sans;
     -webkit-font-smoothing: antialiased;
+    touch-action: manipulation; /* tablets: no double-tap zoom delay */
   }
   body {
     @apply bg-background text-foreground;
