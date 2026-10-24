@@ -1,5 +1,6 @@
 """Forms API bodies and responses. The `data` format is documented in docs/architecture.md (U7)."""
 
+import re
 import uuid
 from datetime import datetime
 from typing import Annotated, Any
@@ -9,6 +10,18 @@ from pydantic_core import PydanticCustomError
 
 from app.config.reference import format_reference, is_valid_reference
 from app.schemas.template_schema import Strict
+
+# PostgreSQL text/JSONB refuse U+0000; UTF-8 has no encoding for a lone surrogate.
+UNSTORABLE = re.compile("[\x00\ud800-\udfff]")
+
+
+def _storable(value: str) -> str:
+    if UNSTORABLE.search(value):
+        raise PydanticCustomError("value_error", "Caractère non autorisé.")
+    return value
+
+
+SearchText = Annotated[str, AfterValidator(_storable)]  # free-text query params of GET /api/forms
 
 
 def _reference(value: str) -> str:

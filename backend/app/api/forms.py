@@ -16,7 +16,14 @@ from app.api.deps import (
     require_form_owner_or_admin,
 )
 from app.models import Form, Profile
-from app.schemas.forms import FormCreate, FormOut, FormPage, FormUpdate, NextReference
+from app.schemas.forms import (
+    FormCreate,
+    FormOut,
+    FormPage,
+    FormUpdate,
+    NextReference,
+    SearchText,
+)
 from app.services import forms as service
 from app.services import references
 from app.services.activity import RequestCtx
@@ -38,14 +45,14 @@ ActiveProfile = Annotated[Profile, Depends(require_active_profile)]
 def list_forms(
     auth: CurrentAuth,
     db: Db,
-    q: str | None = None,
-    reference: str | None = None,
+    q: SearchText | None = None,
+    reference: SearchText | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
     author_id: uuid.UUID | None = None,
     owner_profile_id: uuid.UUID | None = None,
     template_id: uuid.UUID | None = None,
-    page: Annotated[int, Query(ge=1)] = 1,
+    page: Annotated[int, Query(ge=1, le=100_000)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 25,
 ) -> FormPage:
     filters = service.Filters(

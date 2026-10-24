@@ -9,7 +9,10 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.models import Profile
+from app.schemas.forms import UNSTORABLE
 from app.schemas.template_schema import Node, Option, TemplateTree, walk
+
+EMPTY = (None, "", [])
 
 
 def _selected(value: Any, option: Option) -> bool:
@@ -19,8 +22,10 @@ def _selected(value: Any, option: Option) -> bool:
 
 def _value(db: Session, node: Node, value: Any) -> Any:
     """The stored form of `value` (None when empty); ValueError with a French message."""
-    if value is None:
+    if value in EMPTY:
         return None
+    if isinstance(value, str) and UNSTORABLE.search(value):
+        raise ValueError("caractère non autorisé.")
     options = [str(o.id) for o in getattr(node, "options", [])]
     match node.type:
         case "text":
@@ -30,8 +35,6 @@ def _value(db: Session, node: Node, value: Any) -> Any:
                 raise ValueError(f"{node.max_length} caractères au maximum.")
             return value if value.strip() else None
         case "date":
-            if value == "":
-                return None
             try:
                 return date.fromisoformat(value).isoformat()
             except (TypeError, ValueError):
