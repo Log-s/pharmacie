@@ -60,6 +60,7 @@ export function FormEditor({
     onSuccess: (saved) => {
       allowLeaving()
       toast.success(defaultValue ? `Fiche ${saved.reference} enregistrée.` : `Fiche ${saved.reference} créée.`)
+      queryClient.removeQueries({ queryKey: [...formsKey, 'list'] }) // no stale list after a save
       void queryClient.invalidateQueries({ queryKey: formsKey })
       navigate(`/fiches/${saved.id}`)
     },
@@ -87,11 +88,9 @@ export function FormEditor({
           <Link to={cancelTo} className={buttonVariants({ variant: 'ghost', size: 'lg' })}>
             Annuler
           </Link>
-          {dirty && (
-            <p className="text-sm text-muted-foreground" aria-live="polite">
-              Modifications non enregistrées
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {dirty && 'Modifications non enregistrées'}
+          </p>
         </div>
       </FormRenderer>
       {dialog}

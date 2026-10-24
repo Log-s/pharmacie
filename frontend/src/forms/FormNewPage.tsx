@@ -6,6 +6,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { buttonVariants } from '@/components/ui/button'
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import { api } from '@/lib/api'
 import type { TemplateTree } from '@/templates/schema'
 import { FormEditor } from './FormEditor'
@@ -26,7 +27,7 @@ export default function FormNewPage() {
         description={chosen ? `${chosen.name}, version ${chosen.version.version}. La référence est proposée automatiquement.` : 'Choisissez le template à remplir.'}
       />
       <div className="max-w-2xl">
-        {templates.isPending && <Skeleton className="h-32 w-full" aria-busy="true" aria-label="Chargement des templates" />}
+        {templates.isPending && <Skeleton className="h-32 w-full" role="status" aria-busy="true" aria-label="Chargement des templates…" />}
         {templates.isError && (
           <Alert variant="destructive" role="alert">
             <AlertTitle>Templates indisponibles</AlertTitle>
@@ -65,7 +66,7 @@ export default function FormNewPage() {
       {chosen && (
         <div className="max-w-2xl">
           <p className="-mt-3 mb-5">
-            <Link to="?" className={buttonVariants({ variant: 'link', className: 'h-auto p-0' })}>
+            <Link to="?" className={cn(buttonVariants({ variant: 'link' }), 'h-auto p-0')}>
               Changer de template
             </Link>
           </p>

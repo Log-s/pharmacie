@@ -24,6 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 import { FormRenderer } from '@/forms/renderer'
 import { api, ApiError, queryClient } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { downloadPdf, formsKey, type FormOut } from './api'
 import { OwnerBadge } from './OwnerBadge'
 
@@ -42,14 +43,14 @@ export default function FormViewPage() {
     mutationFn: () => api(`/forms/${formId}`, { method: 'DELETE' }),
     onSuccess: () => {
       toast.success(`Fiche ${form.data?.reference} supprimée.`)
-      queryClient.removeQueries({ queryKey: [...formsKey, formId] })
-      void queryClient.invalidateQueries({ queryKey: formsKey })
+      // Dropped, not just marked stale: the list must not flash the deleted fiche while it refetches.
+      queryClient.removeQueries({ queryKey: [...formsKey, 'list'] })
       navigate('/fiches')
     },
     onError: (error) => toast.error(error.message),
   })
 
-  if (form.isPending) return <Skeleton className="h-64 w-full max-w-2xl" aria-busy="true" aria-label="Chargement de la fiche" />
+  if (form.isPending) return <Skeleton className="h-64 w-full max-w-2xl" role="status" aria-busy="true" aria-label="Chargement de la fiche…" />
   if (form.isError)
     return form.error instanceof ApiError && form.error.status === 404 ? (
       <StatusPage title="Fiche introuvable" description="Cette fiche n'existe pas ou a été supprimée." />
@@ -64,7 +65,7 @@ export default function FormViewPage() {
   return (
     <>
       <p className="-mt-2 mb-3">
-        <Link to="/fiches" className={buttonVariants({ variant: 'ghost', className: '-ml-2.5' })}>
+        <Link to="/fiches" className={cn(buttonVariants({ variant: 'ghost' }), '-ml-2.5')}>
           <ArrowLeftIcon data-icon="inline-start" />
           Toutes les fiches
         </Link>

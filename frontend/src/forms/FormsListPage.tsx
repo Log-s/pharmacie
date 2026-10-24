@@ -8,7 +8,7 @@ import { useMe } from '@/auth/session'
 import { PageHeader } from '@/components/PageHeader'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -88,23 +88,27 @@ export default function FormsListPage() {
           )
         }
       />
-      <form className="mb-4 flex flex-wrap items-end gap-3" aria-label="Recherche et filtres des fiches" onSubmit={(e) => e.preventDefault()}>
-        <TextFilter id="fiches-recherche" label="Rechercher" placeholder="Référence ou texte d'un champ" className="w-72" value={filters.q} onCommit={(q) => change({ q })} />
-        <TextFilter id="fiches-reference" label="Référence" placeholder="FIXME-000042" className="w-44" value={filters.reference} onCommit={(reference) => change({ reference })} />
-        <DateFilter label="Du" value={date('date_from')} onChange={(d) => change({ date_from: d && iso(d) })} disabled={date('date_to') && { after: date('date_to')! }} />
-        <DateFilter label="Au" value={date('date_to')} onChange={(d) => change({ date_to: d && iso(d) })} disabled={date('date_from') && { before: date('date_from')! }} />
-        <ChoiceFilter id="fiches-auteur" label="Auteur" all="Tous les auteurs" choices={people} value={filters.author_id} onChange={(author_id) => change({ author_id })} />
-        <ChoiceFilter id="fiches-proprietaire" label="Profil propriétaire" all="Tous les profils" choices={people} value={filters.owner_profile_id} onChange={(owner_profile_id) => change({ owner_profile_id })} />
-        <ChoiceFilter id="fiches-template" label="Template" all="Tous les templates" choices={kinds} value={filters.template_id} onChange={(template_id) => change({ template_id })} />
-        {filtered && (
-          <Button type="button" variant="ghost" onClick={() => setSearch({}, { replace: true })}>
-            <XIcon data-icon="inline-start" />
-            Réinitialiser
-          </Button>
-        )}
+      <form className="mb-5 flex flex-col gap-3" aria-label="Recherche et filtres des fiches" onSubmit={(e) => e.preventDefault()}>
+        <div className="flex flex-wrap items-end gap-3">
+          <TextFilter id="fiches-recherche" label="Rechercher" placeholder="Ex. : amoxicilline, FIXME-000042…" className="min-w-64 flex-1 sm:max-w-md" value={filters.q} onCommit={(q) => change({ q })} />
+          <TextFilter id="fiches-reference" label="Référence" placeholder="FIXME-000042" className="w-44" value={filters.reference} onCommit={(reference) => change({ reference })} />
+          {filtered && (
+            <Button type="button" variant="ghost" onClick={() => setSearch({}, { replace: true })}>
+              <XIcon data-icon="inline-start" />
+              Réinitialiser
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <DateFilter label="Du" value={date('date_from')} onChange={(d) => change({ date_from: d && iso(d) })} disabled={date('date_to') && { after: date('date_to')! }} />
+          <DateFilter label="Au" value={date('date_to')} onChange={(d) => change({ date_to: d && iso(d) })} disabled={date('date_from') && { before: date('date_from')! }} />
+          <ChoiceFilter id="fiches-auteur" label="Auteur" all="Tous les auteurs" choices={people} value={filters.author_id} onChange={(author_id) => change({ author_id })} />
+          <ChoiceFilter id="fiches-proprietaire" label="Profil propriétaire" all="Tous les profils" choices={people} value={filters.owner_profile_id} onChange={(owner_profile_id) => change({ owner_profile_id })} />
+          <ChoiceFilter id="fiches-template" label="Template" all="Tous les templates" choices={kinds} value={filters.template_id} onChange={(template_id) => change({ template_id })} />
+        </div>
       </form>
 
-      {forms.isPending && <Skeleton className="h-64 w-full" aria-busy="true" aria-label="Chargement des fiches" />}
+      {forms.isPending && <Skeleton className="h-64 w-full" role="status" aria-busy="true" aria-label="Chargement des fiches…" />}
       {forms.isError && (
         <Alert variant="destructive" role="alert">
           <AlertTitle>Fiches indisponibles</AlertTitle>
@@ -117,13 +121,6 @@ export default function FormsListPage() {
             <EmptyTitle>{filtered ? 'Aucune fiche trouvée' : 'Aucune fiche'}</EmptyTitle>
             <EmptyDescription>{filtered ? 'Aucune fiche ne correspond à cette recherche. Élargissez les filtres ou réinitialisez-les.' : "Aucune fiche n'a encore été créée."}</EmptyDescription>
           </EmptyHeader>
-          {!filtered && !isAdmin && (
-            <EmptyContent>
-              <Link to="/fiches/nouvelle" className={buttonVariants()}>
-                Nouvelle fiche
-              </Link>
-            </EmptyContent>
-          )}
         </Empty>
       )}
       {forms.data && forms.data.items.length > 0 && (

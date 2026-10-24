@@ -5,6 +5,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 
 const shortDay = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' })
 
@@ -18,7 +19,7 @@ export function DateFilter({ label, value, onChange, disabled }: { label: string
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             {/* A native button: shadcn's Button does not forward `ref` under React 18, which Popper needs. */}
-            <button type="button" aria-labelledby={`filtre-date-${label}`} className={buttonVariants({ variant: 'outline', className: 'flex-1 justify-start font-normal tabular-nums' })}>
+            <button type="button" aria-labelledby={`filtre-date-${label}`} className={cn(buttonVariants({ variant: 'outline' }), 'flex-1 justify-start border-input font-normal tabular-nums')}>
               <CalendarIcon data-icon="inline-start" />
               {value ? shortDay.format(value) : 'Choisir'}
             </button>

@@ -88,6 +88,7 @@ describe('Fiche view: ownership-aware actions', () => {
     const fetchMock = renderAt('/fiches/f1', user('A'), (url, init) => {
       if (url === '/api/forms/f1' && init?.method === 'DELETE') return new Response(null, { status: 204 })
       if (url === '/api/forms/f1') return Response.json(detail())
+      if (url.startsWith('/api/forms?')) return Response.json({ items: [], total: 0, page: 1, page_size: 25 })
     })
     fireEvent.click(await screen.findByRole('button', { name: 'Supprimer' }))
     const dialog = await screen.findByRole('alertdialog')
