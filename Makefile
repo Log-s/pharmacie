@@ -9,7 +9,7 @@ export VITE_PORT ?= 5173
 DEV_API := $(shell basename "$(CURDIR)" | tr A-Z a-z)-api-dev
 BACKEND_CHECK := ruff check . && ruff format --check . && pytest
 
-.PHONY: up down install migrate backup test check e2e secrets dev
+.PHONY: up down install migrate backup restore audit test check e2e secrets dev
 
 secrets: ## create secrets/* if missing
 	@scripts/make-secrets.sh
@@ -26,8 +26,14 @@ install: ## create the admin and user accounts (interactive)
 migrate:
 	$(COMPOSE) run --rm api python -m app.cli migrate
 
-backup: ## STUB, completed by U9
-	@echo "make backup : pas encore implémenté (U9)." >&2; exit 1
+backup: ## pg_dump + annexes archive into ./backups/ (stack must be running)
+	COMPOSE='$(COMPOSE)' scripts/backup.sh
+
+restore: ## make restore [YES=--yes] DB=backups/db-X.dump ANNEXES=backups/annexes-X.tar.gz (replaces data)
+	COMPOSE='$(COMPOSE)' scripts/restore.sh $(YES) $(DB) $(ANNEXES)
+
+audit: ## pip-audit, npm audit --omit=dev, Trivy on the built images (non-zero when findings)
+	ENGINE='$(ENGINE)' scripts/audit.sh
 
 test: ## backend pytest (throwaway Postgres) + frontend vitest
 	scripts/test-backend.sh pytest
