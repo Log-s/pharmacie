@@ -1,0 +1,34 @@
+FROM python:3.12-slim AS base
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+# WeasyPrint system libraries (pango, harfbuzz) and local fonts: PDF rendering never fetches anything.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libharfbuzz-subset0 \
+        fonts-dejavu-core fonts-liberation \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --home-dir /app --no-create-home app
+WORKDIR /app
+COPY pyproject.toml ./
+RUN pip install pip==26.2.2 && pip install --group runtime
+
+# Used by `make check` / `make test` (scripts/test-backend.sh); never deployed.
+FROM base AS test
+RUN pip install --group dev
+COPY . .
+ENV RUFF_NO_CACHE=true
+USER 10001:10001
+CMD ["pytest"]
+
+FROM base AS runtime
+COPY alembic.ini ./
+COPY alembic ./alembic
+COPY app ./app
+RUN mkdir -p /data/annexes && chown 10001:10001 /data/annexes
+USER 10001:10001
+EXPOSE 8000
+# Proxy headers are trusted from any peer: the api publishes no port, only Caddy reaches it.
+CMD ["sh", "-c", "python -m app.cli migrate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips '*'"]

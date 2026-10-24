@@ -1,0 +1,33 @@
+# Throwaway backend test stack. Run through scripts/test-backend.sh, which gives every run
+# its own project name (so networks/containers never collide) and tears it down on exit.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
+    command: ["postgres", "-c", "fsync=off", "-c", "full_page_writes=off"]
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      # TCP check: the entrypoint's init server only listens on the unix socket.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U test -d test"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+
+  tests:
+    build:
+      context: backend
+      target: test
+    image: pharmacie-api-test:${TEST_TAG:-local}
+    environment:
+      DB_HOST: db
+      DB_USER: test
+      DB_PASSWORD: test
+      DB_NAME: test
+      SECRET_KEY: test-secret-key
+    depends_on:
+      db:
+        condition: service_healthy
