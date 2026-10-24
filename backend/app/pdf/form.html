@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{{ form.reference }}</title>
+<style>{{ css|safe }}</style>
+</head>
+<body>
+{% macro show(items) %}
+{% for item in items %}
+  {% if item.children or not item.answers %}
+  <section>
+    <h2>{{ item.label }}</h2>
+    {{ show(item.children) }}
+  </section>
+  {% else %}
+  <div class="field">
+    <div class="label">{{ item.label }}</div>
+    {% if item.annex %}<div class="annex">Annexe : {{ item.annex }}</div>{% endif %}
+    <ul>
+    {% for text, kids in item.answers %}
+      <li><span class="answer">{{ text }}</span>{{ show(kids) }}</li>
+    {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+{% endfor %}
+{% endmacro %}
+<header>
+  <h1>{{ form.template_name }} <small>version {{ form.version }}</small></h1>
+  <dl>
+    <dt>Référence</dt><dd class="ref">{{ form.reference }}</dd>
+    <dt>Auteur</dt><dd>{{ author }}</dd>
+    <dt>Date</dt><dd>{{ day }}</dd>
+  </dl>
+</header>
+{{ show(items) }}
+</body>
+</html>
