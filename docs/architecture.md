@@ -97,3 +97,60 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
 - Tests: conftest fixtures `accounts`, `make_client(role, profile=None, app=app)`, `admin_client`,
   `user_client`, `login(client, role, password=None)`, `profile_factory(...)`; clients use
   `https://testserver`. Authz matrix: extend `ADMIN_ONLY` in `tests/test_authz_matrix.py`.
+
+### U4: U4: Profils et profil actif
+
+- Endpoints (`api/profiles.py`, logic in `services/profiles.py`, schemas in `schemas/profiles.py`):
+  - `GET /api/profiles`: any session; active (non-archived) profiles, sorted by name.
+    `?include_archived=true` is admin-only (403 for the user session). Item:
+    `{id, display_name, initials, color, archived_at}`.
+  - `POST /api/profiles` (admin) → 201 `ProfileOut`. `PUT /api/profiles/{id}` (admin, full
+    replacement of the three fields) → `ProfileOut`, 404 if unknown. Unknown body fields → 422.
+  - `GET /api/profiles/{id}/deletion-impact` (admin) → `{forms_count, will_archive}`.
+  - `DELETE /api/profiles/{id}` (admin) → `{forms_count, archived}`. No forms: hard delete
+    (`archived: false`). Forms: `archived_at` set, forms untouched (`archived: true`); deleting an
+    archived profile again keeps its first `archived_at`. The profile row is locked
+    (`FOR UPDATE`) so a concurrent form insert cannot slip in between count and delete.
+  - `POST /api/session/profile {profile_id}` (user only) → `Me` with the new `active_profile`;
+    404 unknown, 409 archived (French messages), 403 admin, 422 malformed id.
+- Validation (422, French, `detail[].msg`): `display_name` trimmed, 1-100 chars; `initials` trimmed,
+  1-3 chars; `color` `^#[0-9a-fA-F]{6}$`.
+- Sessions pointing at a deleted profile fall back to no profile (FK `SET NULL`); an archived
+  active profile is already treated as none by `/auth/me` and `require_active_profile`.
+- Activity actions (target `profile`, target_id = profile id):
+  - `profile_create` (details: the three fields), `profile_update` (details `before`, `after`),
+  - `profile_archive` (details `display_name`, `forms_count`),
+  - `profile_delete` (details `display_name`, `forms_count: 0`),
+  - `profile_switch` (profile_id = new profile, details `{from, to}`, `from` null when none).
+- No env var, no migration.
+
+### U5: U5: Templates API
+
+- Tree model: `app/schemas/template_schema.py` (`TemplateTree`, node types, `walk`), documented in
+  `docs/template-schema.md`; JSON Schema export `frontend/src/templates/template.schema.json`
+  (regenerate: `scripts/test-backend.sh python -m app.schemas.template_schema > <that file>`).
+- Endpoints (admin unless noted; writes need `X-CSRF-Token`):
+  - `GET /api/templates` → `[{id, name, archived_at, latest_version}]` (all, archived included;
+    `latest_version` null before the first publish).
+  - `GET /api/templates/available` (both accounts) → `[{id, name, version: Version}]`:
+    non-archived templates with their latest version. Templates never published are left out.
+  - `POST /api/templates {name}` → 201 template.
+  - `GET /api/templates/{id}` → template + `versions: [Version]` (ascending).
+    `Version = {id, template_id, version, published_at, schema_json}`.
+  - `POST /api/templates/{id}/versions` body = the tree `{nodes: [...]}` → 201 Version n+1.
+    422 on an invalid tree, or with the missing ids when an `annex_ref.annex_id` does not exist.
+  - `POST /api/templates/{id}/versions/{n}/restore` → 201 Version n+1 with version n's tree
+    (annexes checked again).
+  - `POST /api/templates/{id}/archive` → template (idempotent). No unarchive route.
+  - `DELETE /api/templates/{id}` → 204; 409 when any form uses any of its versions (relies on
+    `forms.template_version_id ON DELETE RESTRICT`, so it is race-free).
+- Versions are immutable: no PUT/PATCH route exists (a test checks the OpenAPI paths). Publish
+  locks the template row, so concurrent publishes get consecutive numbers.
+- Stored `schema_json` is the validated dump (defaults written out), so restore copies it exactly.
+- Activity actions (target `template`/<template id>, details `name`, plus `version`):
+  `template_created`, `template_published`, `template_restored` (+ `restored_from`),
+  `template_archived`, `template_deleted`.
+- For U7: `walk(tree.nodes, is_open)` yields the visible nodes when `is_open(group, option)` says
+  whether the option is selected. Ids are unique across nodes and options.
+- For U6: annex references are only at `node.annex_ref.annex_id` (never on options).
+- No env vars.
