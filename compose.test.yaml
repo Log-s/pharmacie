@@ -22,6 +22,9 @@ services:
       context: backend
       target: test
     image: pharmacie-api-test:${TEST_TAG:-local}
+    volumes:
+      # read-only, so the JSON Schema export test (U5) compares against the committed file
+      - ./frontend/src/templates:/frontend/src/templates:ro
     environment:
       DB_HOST: db
       DB_USER: test
