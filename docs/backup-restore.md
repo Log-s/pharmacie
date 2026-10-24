@@ -41,10 +41,15 @@ La restauration **remplace** la base et les annexes de la pile ciblée.
    make restore DB=backups/db-20261024T144151Z.dump ANNEXES=backups/annexes-20261024T144151Z.tar.gz
    ```
 
-   Le script demande de taper `oui` ; sans terminal, ajoutez `YES=--yes`. Il arrête `proxy` et
-   `api`, vide le schéma `public`, exécute `pg_restore` (`--no-owner`, arrêt à la première erreur),
-   vide puis réalimente le volume des annexes, puis relance toute la pile (l'api applique les
-   migrations manquantes au démarrage).
+   Le script commence par tout vérifier, sans rien arrêter : les deux fichiers existent et ne sont
+   pas vides, l'archive des annexes est une `tar.gz` lisible, le dump est lisible en entier par
+   `pg_restore`. Un fichier faux, tronqué ou des arguments inversés sont refusés (code 2) et la pile
+   n'est pas touchée. Il demande ensuite de taper `oui` ; sans terminal, ajoutez `YES=--yes`. Puis il
+   arrête `proxy` et `api`, recrée le schéma `public` et charge le dump dans **une seule
+   transaction** (en cas d'erreur, la base reste telle qu'elle était), dépose les annexes dans un
+   dossier temporaire du volume avant de remplacer les fichiers en place, puis relance toute la pile
+   (l'api applique les migrations manquantes au démarrage). Si la restauration échoue après l'arrêt,
+   la base est intacte mais la pile reste arrêtée : corrigez la cause puis `make up`.
 3. Vérifiez :
 
    ```sh
@@ -64,3 +69,9 @@ pile neuve `u9-restore` (volumes vierges, `HTTPS_PORT=19444`) : `accounts = 2`, 
 `alembic_version = u1_initial`, `/api/health` répond `ok`, la connexion admin fonctionne avec le
 mot de passe d'origine et le journal restauré est lisible via `/api/journal`. Un `UPDATE` sur
 `activity_log` reste refusé après restauration (trigger restauré avec le schéma).
+
+Contrôle des refus (pile `u9` remplie, `test-results/U9-C3b.log`) : dump tronqué, archive tronquée,
+arguments inversés, fichier vide, fichier absent, un seul argument : tous refusés avant tout arrêt ;
+conteneurs, heures de démarrage, comptes (2/1/1) et `sha256` des annexes inchangés. Restauration
+par-dessus une pile déjà modifiée (table et profil en trop, fichiers d'annexes en trop) : la pile
+retrouve exactement l'état de la sauvegarde.
