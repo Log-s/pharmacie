@@ -1,7 +1,8 @@
 .claude/settings.local.json
 .claude/worktrees/
 .claude/orchestrate-runs/
-secrets/
+secrets/*
+!secrets/.gitkeep
 .env
 .venv/
 __pycache__/
@@ -11,3 +12,5 @@ frontend/dist/
 frontend/test-results/
 frontend/playwright-report/
 backups/
+test-results/
+playwright-report/

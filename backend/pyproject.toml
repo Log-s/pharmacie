@@ -1,0 +1,38 @@
+# Dependencies are pinned dependency groups, installed with `pip install --group <name>` (pip >= 25.1).
+[dependency-groups]
+runtime = [
+    "fastapi==0.162.0",
+    "uvicorn==0.54.0",
+    "pydantic==2.14.1",
+    "pydantic-settings==2.16.1",
+    "sqlalchemy==2.1.6",
+    "alembic==1.20.1",
+    "psycopg[binary]==3.3.6",
+    "argon2-cffi==25.1.0",
+    "zxcvbn==4.5.0",
+    "weasyprint==70.0",
+    "pypdf==6.21.2",
+    "jinja2==3.1.6",
+    "python-multipart==0.0.32",
+]
+dev = [
+    { include-group = "runtime" },
+    "pytest==9.1.1",
+    "httpx==0.28.1",
+    "ruff==0.17.2",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+ignore = ["S101"]  # assert is how pytest tests are written
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -p no:cacheprovider"
+pythonpath = ["."]
+# Spec §7 names httpx; Starlette's nudge towards httpx2 is noise until the stack moves.
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]
