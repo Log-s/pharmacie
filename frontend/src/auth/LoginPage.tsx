@@ -51,10 +51,10 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-svh flex-col">
-      <div className="flex items-center justify-between px-4 py-3 md:px-6">
+      <header className="flex items-center justify-between px-4 py-3 md:px-6">
         <Brand />
         <ThemeToggle />
-      </div>
+      </header>
       <main className="flex flex-1 justify-center px-4 pt-[10vh] pb-12">
         <Card className="h-fit w-full max-w-sm shadow-overlay">
           <CardHeader>

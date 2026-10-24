@@ -12,7 +12,7 @@ export type AnnexInfoProps = {
 }
 
 const iconClass =
-  'ml-1 inline-flex size-5 items-center justify-center rounded-full align-middle text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-4'
+  'ml-1 inline-flex size-6 items-center justify-center rounded-full align-middle text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 [&_svg]:size-4'
 
 /**
  * "i" icon after a field label: hover or keyboard focus shows the annex excerpt, click opens the

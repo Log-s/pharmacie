@@ -10,5 +10,6 @@ export default defineConfig({
     ignoreHTTPSErrors: true, // Caddy internal CA
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  // channel 'chromium' = full Chromium in new headless mode: it has a PDF viewer, so the annex tab keeps its URL.
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'], channel: 'chromium' } }],
 })

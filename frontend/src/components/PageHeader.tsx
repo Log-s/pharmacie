@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import { usePageTitle } from '@/lib/usePageTitle'
 
 /** Top of every module page: the h1, one line of context, optional actions on the right. */
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
+  usePageTitle(title)
   return (
     <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div className="flex max-w-prose flex-col gap-1">
