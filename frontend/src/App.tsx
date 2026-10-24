@@ -1,5 +1,6 @@
 import { LogOutIcon } from 'lucide-react'
-import { Link, NavLink, Outlet } from 'react-router'
+import { useEffect, useRef } from 'react'
+import { Link, NavLink, Outlet, useLocation } from 'react-router'
 import { Brand } from '@/components/Brand'
 import { navItems } from '@/components/nav'
 import { ProfileSwitcher } from '@/components/ProfileSwitcher'
@@ -13,6 +14,14 @@ const focusRing = 'outline-none focus-visible:ring-3 focus-visible:ring-ring/50'
 export default function App() {
   const me = useMe().data
   const logout = useLogout()
+  // A client-side navigation moves focus to the page, as a full page load would (keyboard and screen readers).
+  const { pathname } = useLocation()
+  const main = useRef<HTMLElement>(null)
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) first.current = false
+    else main.current?.focus({ preventScroll: true })
+  }, [pathname])
   if (!me) return null // RequireAuth redirects; this covers the render right after logout
   // The user account sees no navigation until it has picked a profile.
   const items = me.role === 'admin' || me.active_profile ? navItems.filter((item) => item.roles.includes(me.role)) : []
@@ -64,7 +73,7 @@ export default function App() {
           </div>
         </div>
       </header>
-      <main id="contenu" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 outline-none md:px-6">
+      <main id="contenu" ref={main} tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 outline-none md:px-6">
         <Outlet />
       </main>
     </div>
