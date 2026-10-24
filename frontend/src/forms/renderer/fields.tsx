@@ -2,7 +2,8 @@ import { fr } from 'date-fns/locale'
 import { CalendarIcon } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { AnnexInfo } from '@/annexes/AnnexInfo'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Calendar } from '@/components/ui/calendar'
 import { FieldLabel } from '@/components/ui/field'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -69,20 +70,17 @@ export function DatePicker({ id, labelId, value, onChange, onBlur, invalid, requ
         if (!next) onBlur()
       }}
     >
-      <PopoverTrigger asChild>
-        <Button
-          id={id}
-          variant="outline"
-          className="w-full justify-start font-normal tabular-nums sm:w-64"
-          aria-labelledby={`${labelId} ${id}-valeur`}
-          aria-describedby={describedBy}
-          aria-invalid={invalid || undefined}
-        >
-          <CalendarIcon data-icon="inline-start" className="text-muted-foreground" />
-          <span id={`${id}-valeur`} className={date ? undefined : 'text-muted-foreground'}>
-            {date ? formatDate(date) : 'Choisir une date'}
-          </span>
-        </Button>
+      <PopoverTrigger
+        id={id}
+        aria-labelledby={`${labelId} ${id}-valeur`}
+        aria-describedby={describedBy}
+        aria-invalid={invalid || undefined}
+        className={cn(buttonVariants({ variant: 'outline' }), 'w-full justify-start font-normal tabular-nums sm:w-64')}
+      >
+        <CalendarIcon data-icon="inline-start" className="text-muted-foreground" />
+        <span id={`${id}-valeur`} className={date ? undefined : 'text-muted-foreground'}>
+          {date ? formatDate(date) : 'Choisir une date'}
+        </span>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
