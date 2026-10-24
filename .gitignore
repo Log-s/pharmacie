@@ -1,0 +1,13 @@
+.claude/settings.local.json
+.claude/worktrees/
+.claude/orchestrate-runs/
+secrets/
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+backups/
