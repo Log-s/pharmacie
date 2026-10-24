@@ -19,12 +19,20 @@
 		X-Frame-Options "DENY"
 		Referrer-Policy "no-referrer"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
 		-Server
 	}
 
 	encode zstd gzip
 
 	handle /api/* {
+		# Personal data and session-bound answers: never cached by the browser or a proxy.
+		header Cache-Control "no-store"
+		# Annex limit (ANNEX_MAX_BYTES, 20 MiB) plus multipart overhead; bigger bodies get 413 at the proxy.
+		request_body {
+			max_size 21MB
+		}
 		reverse_proxy api:8000
 	}
 
