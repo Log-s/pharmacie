@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.models import Form, Profile
@@ -21,13 +21,19 @@ def get_locked(db: Session, profile_id: uuid.UUID) -> Profile | None:
 
 
 def forms_count(db: Session, profile_id: uuid.UUID) -> int:
+    """Forms the profile owns or is named in as an `author` value (data = {node id: profile id})."""
+    authored = text(
+        "EXISTS (SELECT 1 FROM jsonb_each_text(forms.data) AS e WHERE e.value = :profile)"
+    ).bindparams(profile=str(profile_id))
     return db.scalar(
-        select(func.count()).select_from(Form).where(Form.owner_profile_id == profile_id)
+        select(func.count())
+        .select_from(Form)
+        .where(or_(Form.owner_profile_id == profile_id, authored))
     )
 
 
 def remove(db: Session, profile: Profile) -> tuple[int, bool]:
-    """Deletes a profile without forms, archives one that owns forms (forms untouched).
+    """Deletes a profile without fiches, archives one that owns or is the author of fiches.
     Returns (forms_count, archived); the caller commits."""
     count = forms_count(db, profile.id)
     if count == 0:

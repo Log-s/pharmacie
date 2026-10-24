@@ -26,11 +26,12 @@ def add_form(db):
     db.add(version)
     db.flush()
 
-    def add(profile: Profile) -> Form:
+    def add(profile: Profile, data: dict | None = None) -> Form:
         form = Form(
             template_version_id=version.id,
             reference=f"F-{uuid.uuid4().hex[:8]}",
             owner_profile_id=profile.id,
+            data=data or {},
         )
         db.add(form)
         db.commit()
@@ -152,6 +153,22 @@ def test_delete_with_forms_archives_and_keeps_forms(admin_client, profile_factor
     assert admin_client.delete(path).json()["archived"] is True
     db.expire_all()
     assert db.get(Profile, profile.id).archived_at == first
+
+
+def test_profile_named_as_author_in_a_form_is_archived_not_deleted(
+    admin_client, profile_factory, add_form, db
+):
+    owner, author = profile_factory("Alice", "AL"), profile_factory("Bruno", "BR")
+    add_form(owner, {str(uuid.uuid4()): str(author.id)})
+    path = f"/api/profiles/{author.id}"
+    assert admin_client.get(f"{path}/deletion-impact").json() == {
+        "forms_count": 1,
+        "will_archive": True,
+    }
+    assert admin_client.delete(path).json() == {"forms_count": 1, "archived": True}
+    db.expire_all()
+    assert db.get(Profile, author.id).archived_at is not None
+    assert actions(db) == ["profile_archive"]
 
 
 def test_delete_unknown_profile_is_404(admin_client):

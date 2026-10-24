@@ -111,7 +111,8 @@ def test_get_is_readable_by_everyone_with_can_edit_for_the_caller(world, admin_c
 def test_archived_owner_forms_are_read_only_for_the_user(world, admin_client):
     f1 = world["f"][0]
     response = admin_client.delete(f"/api/profiles/{world['a'].id}")
-    assert response.json() == {"forms_count": 2, "archived": True}
+    # A's two forms, plus a third form that names Alice in its author field.
+    assert response.json() == {"forms_count": 3, "archived": True}
     for client in (world["ca"], world["cb"]):  # A's stale session, and another profile
         detail = client.get(f"/api/forms/{f1['id']}").json()
         assert (detail["can_edit"], detail["owner"]["archived"]) == (False, True)
