@@ -5,7 +5,6 @@ from typing import Annotated
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
-
 UNSTORABLE = re.compile("[\x00\ud800-\udfff]")
 
 

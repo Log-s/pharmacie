@@ -29,7 +29,8 @@ def too_big_message() -> str:
 
 def clean_filename(raw: str | None) -> str:
     """Last path component, no control characters, at most 255 chars (keeping the extension)."""
-    last = re.split(r"[\\/]", raw or "")[-1].encode("utf-8", "ignore").decode()  # drops lone surrogates
+    last = re.split(r"[\\/]", raw or "")[-1]
+    last = last.encode("utf-8", "ignore").decode()  # drops lone surrogates
     name = re.sub(r"[\x00-\x1f\x7f]", "", last).strip()
     return name if len(name) <= 255 else name[:251] + name[-4:]
 
