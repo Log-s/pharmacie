@@ -362,3 +362,41 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   Kept: Publish disabled while the draft equals the latest version (status says « À jour. »); straight apostrophes
   (project convention); preview mode not in the URL. Not fixed (outside scope): React 18 ref warning raised by
   `components/ui/dialog`/`alert-dialog` overlays.
+
+### U10: U10: UI admin (profils, annexes, journal) et choix de profil
+
+- Pages: `profiles/ProfilePickerPage` (`/profil`, cartes-boutons, Entrée/Espace), `profiles/ProfilesPage` (admin CRUD,
+  `ProfileFormDialog` = nom, initiales, pastilles de couleur + `<input type=color>`, aperçu paraphe), `annexes/AnnexesPage`
+  (les deux rôles; admin: `AnnexUpload` glisser-déposer + fichier, `AnnexDialogs` modifier/supprimer), `admin/JournalPage`.
+- `components/ProfileSwitcher`: menu déroulant d'en-tête (radio des profils actifs, chargés à l'ouverture). Changer =
+  `POST /api/session/profile` puis `setQueryData(me)` + `invalidateQueries()` (`profiles/api.ts`). Export `Paraphe` inchangé.
+- `annexes/AnnexInfo` (signature de U3 conservée): `GET /api/annexes/{id}` (cache 60 s); icône « i » = lien PDF
+  `target=_blank rel=noopener`; HoverCard (survol ET focus clavier) avec titre + extrait cliquable; 404 → « Annexe supprimée »
+  sans lien; erreur réseau: lien seul.
+- Suppression de profil: `GET deletion-impact` dans la boîte de dialogue (nombre de fiches, archivage ou suppression).
+  Annexe: 409 `{detail, templates[]}` affiché dans la boîte (`annexes/api.ts annexRequest`, car `api()` ne gère ni multipart
+  ni le corps 409; même CSRF/401/403).
+- Journal: filtres `from`, `to`, `action`, `profile_id`, `page` dans l'URL (`useSearchParams`), pagination serveur (50/page).
+  Libellés français des actions connues, code brut sinon. Dates via `Intl.DateTimeFormat('fr-FR')`.
+- Durcissement: `admin/validation.ts` refuse U+0000 et les surrogates isolés côté client (recherche, titres, noms) comme le
+  serveur (422); champ optionnel jamais envoyé vide (titre d'upload); 422 serveur affichés sur le champ (`fieldErrors`).
+- Limite d'upload côté client = 20 Mo (`MAX_ANNEX_BYTES`, miroir de `ANNEX_MAX_BYTES`); le serveur reste l'autorité (413).
+- Gotcha React 18: `Button` shadcn ne transmet pas `ref`, donc `asChild` sur `PopoverTrigger`/`DropdownMenuTrigger` ne se
+  positionne pas (contenu à -200 %). Utiliser `<button className={buttonVariants(...)}>`. `ui/calendar.tsx` journalise le même
+  avertissement (boutons de jour), sans effet visible ici.
+- Tests: `AnnexInfo.test`, `AnnexesPage.test`, `profiles.test`, `JournalPage.test` (Vitest). Parcours navigateur: Playwright
+  (image `mcr.microsoft.com/playwright:v1.64.1-noble`, `--network host`), captures dans `frontend/test-results/U10/`.
+- Audit web-design-guidelines (JournalPage, AnnexesPage, AnnexUpload, AnnexDialogs, AnnexInfo, ProfilesPage, ProfileFormDialog,
+  ProfilePickerPage, ProfileSwitcher), corrigé:
+  1. Popper sans position (ref perdu sur `Button asChild`) → boutons natifs `buttonVariants`.
+  2. Filtres, page du journal et recherche d'annexes absents de l'URL → `useSearchParams`.
+  3. Dates formatées à la main (`dd/MM/yyyy`) → `Intl.DateTimeFormat('fr-FR')`.
+  4. Pastilles de couleur nommées `#rrggbb` → noms français (Vert, Bleu…) pour les lecteurs d'écran.
+  5. Pas de focus sur le premier champ en erreur → `focusFirstInvalid` (par id) dans les deux formulaires.
+  6. Espaces insécables manquants avant `:` et dans « » → ajoutés dans le texte visible.
+  7. Placeholder sans exemple ni points de suspension → « Par défaut, le nom du fichier… ».
+  8. Boutons d'action de ligne `sm` (28 px) → taille normale (32 px) pour la tablette.
+  Conservé: confirmations avant suppression, régions `aria-live` polies, `role=alert` sur les erreurs, `aria-invalid` +
+  `aria-describedby`, focus visible partout, `tabular-nums` sur dates et nombres. Non corrigé: `transition-all` dans `ui/button`.
+- Aucune variable d'environnement, aucune migration, aucun changement backend. `App.test.tsx` (U3) adapté: le sélecteur
+  d'en-tête est un bouton, et le test de déconnexion part de `/fiches` (le Journal appelle maintenant l'API).
