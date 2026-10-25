@@ -26,8 +26,8 @@ modules and their contracts. Written in English, like the code comments. The run
   `@fontsource-variable`), oxlint (with jsx-a11y), Vitest + Testing Library, Playwright config in
   `frontend/playwright.config.ts` (suite in `frontend/e2e/`).
 - Env vars: `HTTPS_PORT` (8443), `SITE_HOST` (localhost), `API_DEV_PORT` (8000), `VITE_PORT` (5173),
-  `VITE_API_TARGET`; api: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`,
-  `ANNEXES_DIR` (secrets come from `/run/secrets/<name>` when present).
+  `VITE_API_TARGET`; api: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`
+  (secrets come from `/run/secrets/<name>` when present).
 
 ### U2: Comptes, sessions, sécurité d'accès
 
@@ -178,45 +178,40 @@ modules and their contracts. Written in English, like the code comments. The run
 
 ### U6: Annexes (API)
 
-- Endpoints (`api/annexes.py`, mounted under `/api`):
-  - `GET /annexes?q=` list, both roles; `q` = case-insensitive match on title or excerpt
-    (LIKE wildcards are literal). Ordered by title.
-  - `GET /annexes/{id}` metadata; `GET /annexes/{id}/file` the PDF: `application/pdf`,
-    `Content-Disposition: inline; filename="<ascii fallback>"; filename*=UTF-8''<pct-encoded>`,
-    `X-Content-Type-Options: nosniff`. 404 if the row or the file is missing.
-  - `POST /annexes` (admin, multipart `file` + optional `title`, default = file name without
-    `.pdf`) -> 201 `AnnexOut`. `PATCH /annexes/{id}` (admin, `{title?, excerpt?}`, nothing else
-    editable). `DELETE /annexes/{id}` (admin) -> 204.
-- `AnnexOut`: `id, title, filename, size, sha256, excerpt, created_at`; `storage_path` never exposed.
-- Upload rules: name must end in `.pdf` AND content must start with `%PDF-` (422, French);
-  larger than `ANNEX_MAX_BYTES` -> 413 (partial file removed).
-- Upload body handling: `POST /annexes` declares no body parameter. Auth, CSRF and `require_admin`
-  run first, then the `read_upload` dependency parses the multipart itself (`request.form()`), so
-  anonymous (401) and user (403) requests are refused before any body is read. A `Content-Length`
-  above `ANNEX_MAX_BYTES` + 1 MiB (multipart overhead) is refused 413 before parsing; the exact
-  size is still checked while streaming to disk (chunked bodies have no Content-Length).
-- Proxy interplay: an admin upload within the Content-Length slack is still spooled by Starlette
-  before the exact check. The hard cap on request size belongs to the proxy (`request_body
-  max_size` in the Caddyfile, U9): set it to at least `ANNEX_MAX_BYTES` + 1 MiB.
-- Unstorable text: `title` (upload form, PATCH), `excerpt` (PATCH) and `GET /annexes?q=` containing
-  `\x00` or a lone surrogate -> 422 (French); PostgreSQL text cannot store NUL and UTF-8 cannot
-  encode a surrogate. The auto excerpt drops C0 controls except `\t \n \r` and lone surrogates,
-  then whitespace is normalised; the client filename drops control chars and surrogates.
-- An empty or blank `title` form field counts as absent (default = file name).
-- Storage: `settings.annexes_dir / "<annex uuid>.pdf"`; `annexes.storage_path` holds the relative
-  `<uuid>.pdf`. The client filename is metadata only (basename, control chars removed, <= 255).
-- Excerpt: first ~500 characters via pypdf (first 20 pages max), whitespace-normalised; empty when
-  there is no text or pypdf cannot read the file (the upload is still accepted).
-- Delete guard: walks the `schema_json` of the LATEST version of every template (archived ones
-  included) for any `annex_ref: {annex_id}`; 409 `{"detail": <French message>, "templates":
-  [names]}`. Older versions do not block. The row is deleted and committed first, then the file
-  is unlinked.
-- Authz: reads = any session; writes = `require_admin` (user 403, anonymous 401, CSRF checked).
-- Activity actions (target_type `annex`, target_id = annex id): `annex_uploaded` (details title,
-  filename, size, sha256), `annex_updated` (details.fields = changed field names),
-  `annex_deleted` (details title, filename).
-- Env var: `ANNEX_MAX_BYTES` (default 20971520 = 20 MiB); `ANNEXES_DIR` as before.
-- Tests: `backend/tests/test_annexes.py` (own `annexes_dir` fixture, tmp dir).
+Annexes are notes (title + rich text) kept in a folder tree. No file is stored: the only state is the database.
+
+- Tables: `annex_folders(id, name, parent_id -> annex_folders ON DELETE CASCADE, created_at)` and
+  `annexes(id, title, folder_id -> annex_folders ON DELETE CASCADE (null = root), body_html,
+  body_text, created_at, updated_at)`. Migration `annex_notes` (after `profile_number`) drops the
+  PDF columns; the cascade in the database is what makes a folder delete recursive.
+- Endpoints (`api/annexes.py`; one router serves both prefixes). Reads: both roles. Writes: admin.
+  - `GET /annexes/tree` -> `{folders: [{id, name, parent_id}], notes: [{id, title, folder_id,
+    excerpt, updated_at}]}`, flat lists sorted by name/title; the client builds the tree.
+  - `GET /annexes?q=` -> the same note summaries, `q` = case-insensitive match on title or
+    `body_text`. `GET /annexes/{id}` -> summary fields + `body_html`, `created_at`
+    (`excerpt` = first 300 characters of `body_text`).
+  - `POST /annexes {title, body_html?, folder_id?}`, `PATCH /annexes/{id}` (`title`, `body_html`,
+    `folder_id`; an explicit `null` moves to the root), `DELETE /annexes/{id}`: 409
+    `{detail, templates}` while the latest version of a template references the note.
+  - `POST /annex-folders {name, parent_id?}`, `PATCH /annex-folders/{id}` (`name`, `parent_id`):
+    422 when the new parent is the folder itself or one of its descendants.
+    `DELETE /annex-folders/{id}` deletes the subtree; 409 with the same `{detail, templates}`
+    payload (nothing deleted) when a note of the subtree is referenced.
+  - Unknown folder (create, move) -> 404 "Dossier introuvable.". `GET /annexes/tree` and
+    `GET /annexes/export.pdf` are declared before `/annexes/{annex_id}`.
+- `services/annexes.sanitize(html) -> (html, text)` runs on every write (POST and PATCH) with
+  `nh3`: tags `p h1 h2 h3 strong em u s ul ol li blockquote code pre a br hr`, only `href` (on
+  `a`; http, https, mailto), `rel="noopener noreferrer"` on links, `<script>`/`<style>` removed
+  with their content. `body_text` = the sanitised HTML without tags (block ends become a space),
+  entities unescaped, whitespace collapsed. `body_html` is limited to 200 000 characters.
+  See [Sécurité](securite.md#annexes-html-assaini).
+- `descendants(db, folder_id)` walks all folders in Python; `would_cycle(db, folder_id,
+  new_parent_id)` uses it. `referencing_templates(db, annex_ids)` takes a set of ids.
+- Journal actions: `annex_created`, `annex_updated`, `annex_deleted`, `annex_folder_created`,
+  `annex_folder_updated`, `annex_folder_deleted`.
+- Removed: PDF upload and storage, `annexes_dir`, `annex_max_bytes`, `python-multipart`, the
+  `annexes` volume; `pypdf` is a dev dependency (tests only). The Caddy body limit is 1 MB.
+- Tests: `backend/tests/test_annexes.py`, `test_annexes_export.py`, rows in `test_authz_matrix.py`.
 
 ### U9: Journal API et durcissement
 
@@ -231,23 +226,20 @@ modules and their contracts. Written in English, like the code comments. The run
   trigger rejects UPDATE/DELETE (tested). Code: `api/journal.py`, `services/journal.py`,
   `schemas/journal.py`.
 - `make backup` (`scripts/backup.sh`): `backups/db-<UTC stamp>.dump` (`pg_dump -Fc`, run in the db
-  container) + `backups/annexes-<stamp>.tar.gz` (tar of `/data/annexes` run in the api container),
-  mode 600, temp dir then rename. `make restore [YES=--yes] DB=... ANNEXES=...`
-  (`scripts/restore.sh`): destructive, but validates first: both files non-empty, annexes archive
-  readable (`tar -tzf`), dump fully readable by `pg_restore` (wrong or truncated file refused with
-  exit 2 before anything is stopped). Then confirms (or `--yes`), stops proxy+api, unpacks the annexes
-  into `.new` inside the volume (the step that can fail for space/IO), THEN loads the dump in ONE
-  transaction (`DROP SCHEMA public CASCADE`, `CREATE SCHEMA`, `pg_restore --no-owner | psql
-  --single-transaction`: all or nothing); a failure in either step removes `.new` and leaves db and
-  annexes untouched. Only renames remain after the commit (old entries to `.old`, new in, both
-  dropped), then the stack restarts. Both honor `COMPOSE`. Procedure: [Sauvegarde et restauration](backup-restore.md).
+  container), mode 600, temp dir then rename. Annex notes live in the database, so the dump is the whole
+  backup. `make restore [YES=--yes] DB=...` (`scripts/restore.sh`): destructive, but validates first:
+  the dump must be non-empty and fully readable by `pg_restore` (wrong or truncated file refused with
+  exit 2 before anything is stopped). Then confirms (or `--yes`), stops proxy+api and loads the dump in
+  ONE transaction (`DROP SCHEMA public CASCADE`, `CREATE SCHEMA`, `pg_restore --no-owner | psql
+  --single-transaction`: all or nothing; a failure leaves the database untouched), then the stack
+  restarts. Both honor `COMPOSE`. Procedure: [Sauvegarde et restauration](backup-restore.md).
 - `make audit` (`scripts/audit.sh`, honors `ENGINE`): builds the api and proxy images, then pip-audit
   (installed with `--target` in a throwaway container, `--path` on the image's site-packages),
   `npm audit --omit=dev`, Trivy (`aquasec/trivy` container, images passed as `podman save` tarballs,
   DB cached in volume `pharmacie-trivy-cache`) on api, proxy and `postgres:16-alpine` (pulled first, so the script is self-contained). Exit 1 on any
   pip-audit/npm finding or Trivy HIGH/CRITICAL; all severities are printed.
-- Caddyfile: `request_body { max_size 21MB }` on `/api/*` (annex limit `ANNEX_MAX_BYTES` 20 MiB, U6, plus
-  multipart overhead; over it the proxy answers 413); added COOP/CORP `same-origin` and `Cache-Control: no-store` on `/api/*`; CSP unchanged
+- Caddyfile: `request_body { max_size 1MB }` on `/api/*` (JSON bodies only, the largest being a note of
+  at most 200 000 characters; over it the proxy answers 413); added COOP/CORP `same-origin` and `Cache-Control: no-store` on `/api/*`; CSP unchanged
   (`default-src 'self'`, `frame-ancestors 'none'`). README: new "Sécurité" section.
 - Env vars documented (already read since U2): `SESSION_IDLE_MINUTES`, `LOGIN_RATE_LIMIT`,
   `LOCKOUT_THRESHOLD`, `LOCKOUT_BASE_SECONDS`, `LOCKOUT_MAX_SECONDS`; set them via
@@ -347,24 +339,23 @@ modules and their contracts. Written in English, like the code comments. The run
 
 - Pages: `profiles/ProfilePickerPage` (`/profil`, cartes-boutons, Entrée/Espace), `profiles/ProfilesPage` (admin CRUD,
   `ProfileFormDialog` = nom, numéro (pré-rempli avec le plus petit numéro libre parmi les profils actifs; 409 affiché sur le champ), pastilles de couleur + `<input type=color>`, aperçu paraphe), `annexes/AnnexesPage`
-  (les deux rôles; admin: `AnnexUpload` glisser-déposer + fichier, `AnnexDialogs` modifier/supprimer), `admin/JournalPage`.
+  (arbre de dossiers et notes, voir « Annexes (front) » plus bas), `admin/JournalPage`.
 - `components/ProfileSwitcher`: menu déroulant d'en-tête (radio des profils actifs, chargés à l'ouverture). Changer =
   `POST /api/session/profile` puis `setQueryData(me)` + `invalidateQueries()` (`profiles/api.ts`). Export `Paraphe` inchangé.
-- `annexes/AnnexInfo` (signature de U3 conservée): `GET /api/annexes/{id}` (cache 60 s); icône « i » = lien PDF
-  `target=_blank rel=noopener`; HoverCard (survol ET focus clavier) avec titre + extrait cliquable; 404 → « Annexe supprimée »
-  sans lien; erreur réseau: lien seul.
+- `annexes/AnnexInfo` (signature de U3 conservée): `GET /api/annexes/{id}` (cache 60 s); icône « i » = lien vers
+  `/annexes/notes/:id` (`target=_blank rel=noopener`); HoverCard (survol ET focus clavier) avec titre + extrait
+  cliquable et le texte « Ouvrir l'annexe »; 404 → « Annexe supprimée » sans lien; erreur réseau: lien seul.
 - Suppression de profil: `GET deletion-impact` dans la boîte de dialogue (nombre de fiches, archivage ou suppression).
-  Annexe: 409 `{detail, templates[]}` affiché dans la boîte (`annexes/api.ts annexRequest`, car `api()` ne gère ni multipart
-  ni le corps 409; même CSRF/401/403).
+  Annexe ou dossier: 409 `{detail, templates[]}` affiché dans la boîte (`annexes/api.ts annexRequest`, car `api()` ne
+  garde pas le corps 409; même CSRF/401/403).
 - Journal: filtres `from`, `to`, `action`, `profile_id`, `page` dans l'URL (`useSearchParams`), pagination serveur (50/page).
   Libellés français des actions connues, code brut sinon. Dates via `Intl.DateTimeFormat('fr-FR')`.
 - Durcissement: `admin/validation.ts` refuse U+0000 et les surrogates isolés côté client (recherche, titres, noms) comme le
-  serveur (422); champ optionnel jamais envoyé vide (titre d'upload); 422 serveur affichés sur le champ (`fieldErrors`).
-- Limite d'upload côté client = 20 Mo (`MAX_ANNEX_BYTES`, miroir de `ANNEX_MAX_BYTES`); le serveur reste l'autorité (413).
+  serveur (422); 422 serveur affichés sur le champ (`fieldErrors`).
 - Gotcha React 18: `Button` shadcn ne transmet pas `ref`, donc `asChild` sur `PopoverTrigger`/`DropdownMenuTrigger` ne se
   positionne pas (contenu à -200 %). Utiliser `<button className={buttonVariants(...)}>`. `ui/calendar.tsx` journalise le même
   avertissement (boutons de jour), sans effet visible ici.
-- Tests: `AnnexInfo.test`, `AnnexesPage.test`, `profiles.test`, `JournalPage.test` (Vitest). Parcours navigateur: Playwright
+- Tests: `AnnexInfo.test`, `AnnexesPage.test`, `NoteEditorPage.test`, `profiles.test`, `JournalPage.test` (Vitest). Parcours navigateur: Playwright
   (image `mcr.microsoft.com/playwright:v1.64.1-noble`, `--network host`), captures dans `frontend/test-results/U10/`.
 - Audit web-design-guidelines (JournalPage, AnnexesPage, AnnexUpload, AnnexDialogs, AnnexInfo, ProfilesPage, ProfileFormDialog,
   ProfilePickerPage, ProfileSwitcher), corrigé:
@@ -380,6 +371,37 @@ modules and their contracts. Written in English, like the code comments. The run
   `aria-describedby`, focus visible partout, `tabular-nums` sur dates et nombres. Non corrigé: `transition-all` dans `ui/button`.
 - Aucune variable d'environnement, aucune migration, aucun changement backend. `App.test.tsx` (U3) adapté: le sélecteur
   d'en-tête est un bouton, et le test de déconnexion part de `/fiches` (le Journal appelle maintenant l'API).
+
+### Annexes (front)
+
+`frontend/src/annexes/`. Le journal affiche les libellés `annex_created`, `annex_updated`, `annex_deleted`,
+`annex_folder_created`, `annex_folder_updated` et `annex_folder_deleted`.
+
+- `api.ts`: types `Folder`, `Note`, `NoteItem`, `Tree`; hooks `useAnnexTree`, `useAnnexSearch`, `useNote`; `indexTree`
+  construit l'arbre côté client à partir de la liste plate de `GET /api/annexes/tree` (sous-dossiers puis notes, ordre
+  alphabétique `fr`); `annexExportUrl(folderId?)`; `annexRequest` ne sert plus qu'aux DELETE qui renvoient un 409.
+- `AnnexesPage` (`/annexes?dossier=<id>&q=<recherche>`): arbre repliable à gauche, contenu du dossier courant avec fil
+  d'Ariane à droite (empilés sur mobile), recherche à plat avec le chemin du dossier (la recherche est dans l'URL et
+  disparaît quand on change de dossier). « Exporter en PDF » pour les deux rôles; l'admin a en plus « Nouveau dossier »,
+  « Nouvelle note », « Renommer », « Déplacer » et « Supprimer ».
+- `AnnexDialogs`: `FolderDialog` (créer ou renommer), `MoveDialog` (exclut le dossier déplacé et ses descendants),
+  `DeleteDialog` (décompte des notes et sous-dossiers, liste des templates en cas de 409).
+- `NotePage` (`/annexes/notes/:id`, les deux rôles): affiche le HTML assaini par le serveur dans un conteneur
+  `.note-content` (typographie dans `frontend/src/index.css`, partagée avec l'éditeur). « Modifier » n'apparaît que pour
+  l'administrateur.
+- `NoteEditorPage` (`/annexes/notes/nouvelle?dossier=<id>` et `/annexes/notes/:id/modifier`, `RequireRole allow="admin"`):
+  titre, éditeur Tiptap v3 (StarterKit: gras, italique, souligné, barré, titres 1 à 3, listes, citation, lien) et
+  `useUnsavedGuard`. Les liens sont limités à http, https et mailto et ne s'ouvrent pas au clic dans l'éditeur.
+- `AnnexPicker` (éditeur de templates) affiche le chemin du dossier sous le titre de chaque note.
+- Tests: jsdom ne mesure pas le texte; `frontend/src/test-setup.ts` ajoute les polyfills `getClientRects`,
+  `getBoundingClientRect` et `elementFromPoint` que ProseMirror appelle.
+- Audit web-design-guidelines (tous les fichiers de `annexes/` et `AnnexPicker`), corrigé:
+  1. Recherche absente de l'URL → paramètre `q` (`AnnexesPage`).
+  2. Libellés de chargement sans points de suspension → « Chargement des annexes… », « Recherche en cours… ».
+  3. Noms de dossier ou titres très longs sans retour à la ligne → `break-words` sur les liens de ligne.
+  4. Titre vide dans l'éditeur: pas de focus ni de description de l'erreur → `focusFirstInvalid` + `aria-describedby`.
+  Conservé: confirmations avant suppression, régions `aria-live`, `role=alert`, `aria-current` sur l'arbre, focus visible.
+  Non corrigé: apostrophes droites (convention du projet), `transition-all` dans les primitives shadcn.
 
 ### U8: Export PDF
 
@@ -406,6 +428,18 @@ modules and their contracts. Written in English, like the code comments. The run
 - Tests: `backend/tests/test_pdf.py` (pypdf text extraction, 2-page fixture, headers, journal, injection,
   fetcher).
 - No env var, no migration, no dependency added (WeasyPrint 70, Jinja2, pypdf were already pinned).
+- Annex export: `GET /api/annexes/export.pdf[?folder_id=<uuid>]` (both roles) renders the subtree of the
+  chosen folder, or the whole tree without `folder_id` (title « Annexes »). Unknown folder: 404
+  « Dossier introuvable. ». Code in `app/pdf/annexes.py` (template `annexes.html`, style `annexes.css`),
+  reusing `ENV`, `LocalFetcher` and `PDF_DIR` of `render.py`.
+  - Headings: the chosen node is the `h1`; a sub-folder at depth d is an `h(min(d+1,6))`; a note title sits
+    one level under its folder; the headings inside the note are shifted by the same amount (cap `h6`) by a
+    regex on `<h[1-6]>`, which is safe because nh3 leaves no attribute on them. WeasyPrint turns the
+    `h1`-`h6` into PDF bookmarks.
+  - Order: sub-folders first, then notes, alphabetical. A sub-tree without any note is left out.
+  - The note HTML goes through `|safe`: acceptable because nh3 sanitised it on write and `LocalFetcher`
+    refuses every external resource (see [Sécurité](securite.md#annexes-html-assaini)).
+  - Tests: `backend/tests/test_annexes_export.py` reads the bookmarks back with pypdf.
 
 ### U12: UI Fiches (liste, éditeur, lecture seule, export PDF)
 
@@ -452,12 +486,13 @@ modules and their contracts. Written in English, like the code comments. The run
   `E2E_ADMIN_PASSWORD`, `E2E_USER_PASSWORD`, `E2E_NEW_USER_PASSWORD`; `E2E_BASE_URL` overrides the target.
 - `make smoke` → `scripts/e2e.sh smoke`, port 18444:
   up, `/api/health` 200, install, down. Env read: `COMPOSE`, `ENGINE`, `HTTPS_PORT`.
-- Suite: `frontend/e2e/scenario.spec.ts` (serial, 11 tests, admin and user in separate browser contexts),
-  `e2e/pdf.ts` builds the annex PDF at test time. Config: `playwright.config.ts` uses `channel: 'chromium'`
-  (full Chromium, new headless): the default headless shell has no PDF viewer, so the annex tab would
-  download the file and close instead of keeping `/api/annexes/{id}/file` as its URL.
-- Not in `make check` (needs podman + the Playwright image); `frontend/e2e` is not covered by `tsc -b`
-  (`tsconfig.node.json` lists configs only), it is linted by `npm run lint`.
+- Suite: `frontend/e2e/scenario.spec.ts` (serial, 12 tests, admin and user in separate browser contexts). The annex
+  part: the admin creates the folder « Protocoles » and the sub-folder « Dilutions », writes a note with bold and
+  underlined text in the Tiptap editor, links it in a template; the user hovers the « i » on the fiche, opens the
+  note in a new tab (`/annexes/notes/:id`), then fetches the PDF of « Protocoles » and `e2e/pdf.ts` (`pdfHeadings`,
+  no dependency: it inflates the object streams and walks the bookmark tree) checks h1 folder, h2 sub-folder, h3 note.
+- Not in `make check` (needs podman + the Playwright image); `frontend/e2e` is type-checked by `tsc -b`
+  (`tsconfig.node.json` includes it) and linted by `npm run lint`.
 - web-design-guidelines audit of the whole `frontend/src` (grep for the anti-patterns + axe-core 4.10 over
   every route, 2 roles, light/dark, 1280 and 820 px, with screenshots): 0 WCAG 2.0/2.1 A/AA violations,
   no horizontal overflow, no console error other than the anonymous `/auth/me` 401. Fixed:
