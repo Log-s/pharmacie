@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, StringConstraints
 
 UNSTORABLE = re.compile("[\x00\ud800-\udfff]")
 
@@ -23,28 +23,60 @@ Title = Annotated[
 ]
 
 
-class AnnexUpload(BaseModel):
-    """The non-file field of the upload form."""
+Html = Annotated[str, StringConstraints(max_length=200_000), AfterValidator(no_unstorable)]
+
+
+class NoteIn(BaseModel):
+    title: Title
+    body_html: Html = ""  # sanitised server-side on every write
+    folder_id: uuid.UUID | None = None  # null = root
+
+
+class NoteUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
     title: Title | None = None
+    body_html: Html | None = None
+    folder_id: uuid.UUID | None = None  # sent as null = move to the root
 
 
-class AnnexOut(BaseModel):
-    """Public view: the storage path never leaves the server."""
+class NoteSummary(BaseModel):
+    """What the tree and the search list: no body."""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     title: str
-    filename: str
-    size: int
-    sha256: str
+    folder_id: uuid.UUID | None
     excerpt: str
+    updated_at: datetime
+
+
+class NoteOut(NoteSummary):
+    body_html: str
     created_at: datetime
 
 
-class AnnexUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")  # filename, size, sha256 are not editable
+class FolderIn(BaseModel):
+    name: Title
+    parent_id: uuid.UUID | None = None
 
-    title: Title | None = None
-    excerpt: Annotated[str, Field(max_length=2000), AfterValidator(no_unstorable)] | None = None
+
+class FolderUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: Title | None = None
+    parent_id: uuid.UUID | None = None  # sent as null = move to the root
+
+
+class FolderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    parent_id: uuid.UUID | None
+
+
+class TreeOut(BaseModel):
+    folders: list[FolderOut]
+    notes: list[NoteSummary]

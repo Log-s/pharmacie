@@ -20,7 +20,7 @@ def tree(label: str = "Note", annex_id: str | None = None) -> dict:
 
 
 def make_annex(db) -> Annex:
-    annex = Annex(title="Notice", filename="notice.pdf", storage_path="x.pdf", size=1, sha256="0")
+    annex = Annex(title="Notice", body_html="", body_text="")
     db.add(annex)
     db.commit()
     return annex
