@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from app.models import ActivityLog, Form, Profile, Template, TemplateVersion
 
-GOOD = {"display_name": "Camille D.", "initials": "CD", "color": "#1a2B3c"}
+GOOD = {"display_name": "Camille D.", "number": 12, "color": "#1a2B3c"}
 
 
 def actions(db) -> list[str]:
@@ -47,13 +47,13 @@ def test_admin_creates_lists_and_updates(admin_client, db):
     created = admin_client.post("/api/profiles", json=GOOD)
     assert created.status_code == 201
     body = created.json()
-    assert (body["display_name"], body["initials"], body["color"]) == tuple(GOOD.values())
+    assert (body["display_name"], body["number"], body["color"]) == tuple(GOOD.values())
     assert body["archived_at"] is None
 
     listed = admin_client.get("/api/profiles").json()
     assert [p["id"] for p in listed] == [body["id"]]
 
-    update = {"display_name": "  Camille Durand ", "initials": "CDu", "color": "#000000"}
+    update = {"display_name": "  Camille Durand ", "number": 13, "color": "#000000"}
     response = admin_client.put(f"/api/profiles/{body['id']}", json=update)
     assert response.status_code == 200
     assert response.json()["display_name"] == "Camille Durand"
@@ -61,8 +61,8 @@ def test_admin_creates_lists_and_updates(admin_client, db):
 
 
 def test_admin_list_flags_archived_profiles(admin_client, profile_factory):
-    profile_factory("Actif", "AC")
-    archived = profile_factory("Ancien", "AN", archived=True)
+    profile_factory("Actif")
+    archived = profile_factory("Ancien", archived=True)
     assert [p["display_name"] for p in admin_client.get("/api/profiles").json()] == ["Actif"]
     rows = admin_client.get("/api/profiles?include_archived=true").json()
     assert [p["display_name"] for p in rows] == ["Actif", "Ancien"]
@@ -81,9 +81,14 @@ def test_update_unknown_profile_is_404(admin_client):
         ("color", "#12345", "#rrggbb"),
         ("color", "#12345g", "#rrggbb"),
         ("color", "#1234567", "#rrggbb"),
-        ("initials", "", "1 à 3"),
-        ("initials", "ABCD", "1 à 3"),
-        ("initials", "   ", "1 à 3"),
+        ("number", 0, "nombre entier de 1 à 999"),
+        ("number", 1000, "nombre entier de 1 à 999"),
+        ("number", -4, "nombre entier de 1 à 999"),
+        ("number", "12a", "nombre entier de 1 à 999"),
+        ("number", "12", "nombre entier de 1 à 999"),
+        ("number", 1.5, "nombre entier de 1 à 999"),
+        ("number", True, "nombre entier de 1 à 999"),
+        ("number", None, "nombre entier de 1 à 999"),
         ("display_name", "   ", "obligatoire"),
         ("display_name", "x" * 101, "obligatoire"),
     ],
@@ -99,16 +104,75 @@ def test_invalid_payload_is_422_in_french(admin_client, profile_factory, field, 
         assert message in response.json()["detail"][0]["msg"]
 
 
-def test_unknown_field_is_422(admin_client):
-    assert admin_client.post("/api/profiles", json={**GOOD, "archived_at": None}).status_code == 422
+def test_missing_number_is_422_in_french(admin_client):
+    body = {k: v for k, v in GOOD.items() if k != "number"}
+    response = admin_client.post("/api/profiles", json=body)
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "number"]
+    assert "nombre entier de 1 à 999" in response.json()["detail"][0]["msg"]
+
+
+@pytest.mark.parametrize("extra", [{"archived_at": None}, {"initials": "CD"}])
+def test_unknown_field_is_422(admin_client, extra):
+    assert admin_client.post("/api/profiles", json={**GOOD, **extra}).status_code == 422
+
+
+def test_number_is_an_int_in_every_profile_payload(admin_client, make_client, profile_factory):
+    profile = profile_factory("Marie Curie", 7)
+    owner_numbers = [
+        admin_client.get("/api/profiles").json()[0]["number"],
+        make_client("user", profile).get("/api/auth/me").json()["active_profile"]["number"],
+    ]
+    assert owner_numbers == [7, 7]
+    assert all(type(n) is int for n in owner_numbers)
+
+
+# --- number uniqueness among active profiles ----------------------------------------------------
+
+DUPLICATE = "Le numéro 12 est déjà attribué au profil Camille."
+
+
+def test_duplicate_active_number_is_409_on_create(admin_client, db):
+    first = {**GOOD, "display_name": "Camille"}
+    assert admin_client.post("/api/profiles", json=first).status_code == 201
+    response = admin_client.post("/api/profiles", json={**GOOD, "display_name": "Autre"})
+    assert (response.status_code, response.json()["detail"]) == (409, DUPLICATE)
+    assert actions(db) == ["profile_create"]
+    assert len(admin_client.get("/api/profiles").json()) == 1
+
+
+def test_duplicate_active_number_is_409_on_update(admin_client, profile_factory, db):
+    holder = profile_factory("Camille", 12)
+    other = profile_factory("Autre", 3)
+    response = admin_client.put(f"/api/profiles/{other.id}", json=GOOD)
+    assert (response.status_code, response.json()["detail"]) == (409, DUPLICATE)
+    db.expire_all()
+    assert db.get(Profile, other.id).number == 3
+    assert actions(db) == []
+    # keeping one's own number is not a clash
+    assert admin_client.put(f"/api/profiles/{holder.id}", json=GOOD).status_code == 200
+
+
+def test_archived_profile_keeps_its_number_and_frees_it_for_a_new_one(
+    admin_client, profile_factory, add_form, db
+):
+    old = profile_factory("Ancien", 12)
+    add_form(old)
+    assert admin_client.delete(f"/api/profiles/{old.id}").json()["archived"] is True
+    created = admin_client.post("/api/profiles", json=GOOD)
+    assert created.status_code == 201
+    db.expire_all()
+    assert db.get(Profile, old.id).number == 12
+    listed = admin_client.get("/api/profiles?include_archived=true").json()
+    assert [p["number"] for p in listed] == [12, 12]
 
 
 # --- user-facing list -------------------------------------------------------------------------
 
 
 def test_user_list_returns_only_active_profiles(user_client, profile_factory):
-    profile_factory("Actif", "AC")
-    profile_factory("Ancien", "AN", archived=True)
+    profile_factory("Actif")
+    profile_factory("Ancien", archived=True)
     response = user_client.get("/api/profiles")
     assert response.status_code == 200
     assert [p["display_name"] for p in response.json()] == ["Actif"]
@@ -158,7 +222,7 @@ def test_delete_with_forms_archives_and_keeps_forms(admin_client, profile_factor
 def test_profile_named_as_author_in_a_form_is_archived_not_deleted(
     admin_client, profile_factory, add_form, db
 ):
-    owner, author = profile_factory("Alice", "AL"), profile_factory("Bruno", "BR")
+    owner, author = profile_factory("Alice"), profile_factory("Bruno")
     add_form(owner, {str(uuid.uuid4()): str(author.id)})
     path = f"/api/profiles/{author.id}"
     assert admin_client.get(f"{path}/deletion-impact").json() == {
@@ -190,7 +254,7 @@ def test_deleting_the_active_profile_clears_it_from_sessions(
 
 
 def test_switch_sets_the_active_profile_and_logs_from_to(make_client, profile_factory, db):
-    first, second = profile_factory("A", "A"), profile_factory("B", "B")
+    first, second = profile_factory("A"), profile_factory("B")
     user = make_client("user")
     response = user.post("/api/session/profile", json={"profile_id": str(first.id)})
     assert response.status_code == 200
@@ -279,13 +343,12 @@ def test_failed_writes_leave_no_activity_row(user_client, admin_client, db):
     assert actions(db) == []
 
 
-@pytest.mark.parametrize("field", ["display_name", "initials"])
 @pytest.mark.parametrize("bad", ["a\x00", "\ud800"])
-def test_unstorable_characters_in_a_profile_are_422(admin_client, field, bad):
+def test_unstorable_characters_in_a_profile_are_422(admin_client, bad):
     # ensure_ascii JSON: httpx's json= cannot encode a lone surrogate.
     response = admin_client.post(
         "/api/profiles",
-        content=json.dumps(GOOD | {field: bad}),
+        content=json.dumps(GOOD | {"display_name": bad}),
         headers={"content-type": "application/json"},
     )
     assert response.status_code == 422, response.text

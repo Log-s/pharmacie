@@ -106,7 +106,7 @@ def test_concurrent_allocations_never_share_a_number():
 
 def test_concurrent_creates_get_distinct_references(db, make_client, profile_factory):
     version = publish(db)
-    clients = [make_client("user", profile_factory(f"P{i}", f"P{i}")) for i in range(4)]
+    clients = [make_client("user", profile_factory(f"P{i}")) for i in range(4)]
     statuses, refs = [], []
 
     def post(test_client):

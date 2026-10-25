@@ -1,9 +1,9 @@
 import re
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
-from pydantic import AfterValidator, BaseModel, ConfigDict
+from pydantic import AfterValidator, BaseModel, BeforeValidator, ConfigDict, Field
 from pydantic_core import PydanticCustomError
 
 from app.schemas.annexes import no_unstorable
@@ -22,10 +22,10 @@ def _display_name(value: str) -> str:
     return value
 
 
-def _initials(value: str) -> str:
-    value = value.strip()
-    if not 1 <= len(value) <= 3:
-        raise _fail("Les initiales doivent comporter de 1 à 3 caractères.")
+def _number(value: Any) -> int:
+    # JSON integers only ("12" and 12.0 are refused); a missing key arrives here as None (default).
+    if type(value) is not int or not 1 <= value <= 999:
+        raise _fail("Le numéro doit être un nombre entier de 1 à 999.")
     return value
 
 
@@ -41,7 +41,7 @@ class ProfileIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     display_name: Annotated[str, AfterValidator(no_unstorable), AfterValidator(_display_name)]
-    initials: Annotated[str, AfterValidator(no_unstorable), AfterValidator(_initials)]
+    number: Annotated[int, BeforeValidator(_number)] = Field(None, validate_default=True)
     color: Annotated[str, AfterValidator(_color)]
 
 
@@ -50,7 +50,7 @@ class ProfileOut(BaseModel):
 
     id: uuid.UUID
     display_name: str
-    initials: str
+    number: int
     color: str
     archived_at: datetime | None
 

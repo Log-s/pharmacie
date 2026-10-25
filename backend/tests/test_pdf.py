@@ -61,8 +61,8 @@ NODES = [
 @pytest.fixture
 def exported(db, make_client, profile_factory):
     """(response, pages' text, form) for a user's form long enough for two pages."""
-    alice = profile_factory("Alice Durand", "AD")
-    bruno = profile_factory("Bruno Martin", "BM", "#16a34a")
+    alice = profile_factory("Alice Durand")
+    bruno = profile_factory("Bruno Martin", color="#16a34a")
     client = make_client("user", alice)
     version = publish(db, NODES, name="Contrôle réception")
     data = {

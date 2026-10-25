@@ -81,12 +81,12 @@ def test_me_returns_role_active_profile_and_csrf(client, accounts, login):
 
 
 def test_me_shows_the_active_profile_unless_archived(make_client, profile_factory, db):
-    profile = profile_factory("Marie Curie", "MC", "#123456")
+    profile = profile_factory("Marie Curie", 7, "#123456")
     user = make_client("user", profile)
     assert user.get("/api/auth/me").json()["active_profile"] == {
         "id": str(profile.id),
         "display_name": "Marie Curie",
-        "initials": "MC",
+        "number": 7,
         "color": "#123456",
     }
     profile.archived_at = datetime.now(UTC)
