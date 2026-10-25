@@ -31,11 +31,11 @@ migrate:
 reset-admin-password: ## new admin password, closes admin sessions (interactive, server only)
 	$(COMPOSE) run --rm api python -m app.cli reset-admin-password
 
-backup: ## pg_dump + annexes archive into ./backups/ (stack must be running)
+backup: ## pg_dump into ./backups/ (stack must be running)
 	COMPOSE='$(COMPOSE)' scripts/backup.sh
 
-restore: ## make restore [YES=--yes] DB=backups/db-X.dump ANNEXES=backups/annexes-X.tar.gz (replaces data)
-	COMPOSE='$(COMPOSE)' scripts/restore.sh $(YES) $(DB) $(ANNEXES)
+restore: ## make restore [YES=--yes] DB=backups/db-X.dump (replaces the database)
+	COMPOSE='$(COMPOSE)' scripts/restore.sh $(YES) $(DB)
 
 audit: ## pip-audit, npm audit --omit=dev, Trivy on the built images (non-zero when findings)
 	ENGINE='$(ENGINE)' scripts/audit.sh
