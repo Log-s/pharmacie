@@ -72,8 +72,9 @@ d'échec.
 Rapport : `frontend/playwright-report/index.html`. Port : `make e2e HTTPS_PORT=19443`.
 
 Le scénario (`frontend/e2e/scenario.spec.ts`) suit la spécification §11 : connexion admin, profils,
-annexe PDF (générée pendant le test), template avec sous-champ conditionnel et annexe, puis côté
-utilisateur le choix du profil, une fiche, l'export PDF, l'infobulle de l'annexe, le changement de
+dossier, sous-dossier et note d'annexe (gras, souligné), template avec sous-champ conditionnel lié à
+la note, puis côté utilisateur le choix du profil, une fiche, l'export PDF, l'infobulle de la note,
+l'export PDF du dossier (titres vérifiés), le changement de
 profil (lecture seule), la modification et la suppression par l'admin, et la réinitialisation du
 mot de passe utilisateur.
 

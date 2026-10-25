@@ -10,7 +10,7 @@ anglais, comme les commentaires du code.
 navigateur ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, front compilé dans /srv)
                                             │ /api/*            réseau « front »
                                             ▼
-                                     api (FastAPI/uvicorn :8000, uid 10001, volume annexes)
+                                     api (FastAPI/uvicorn :8000, uid 10001)
                                             │                   réseau « back » (internal)
                                             ▼
                                      db (PostgreSQL 16, volume pgdata, aucun port publié)
@@ -22,7 +22,7 @@ non root (podman rootless) :
 | Service | Image | Rôle |
 |---|---|---|
 | `proxy` | `frontend/Containerfile` (Node pour compiler, puis Caddy 2.11) | TLS, en-têtes de sécurité, fichiers du front, relais de `/api/*` |
-| `api` | `backend/Containerfile`, cible `runtime` (Python 3.12) | API REST, rendu PDF, stockage des annexes ; applique les migrations au démarrage |
+| `api` | `backend/Containerfile`, cible `runtime` (Python 3.12) | API REST, rendu PDF ; applique les migrations au démarrage |
 | `db` | `docker.io/library/postgres:16-alpine` | données ; joignable seulement depuis `api` |
 
 Détails : [Infrastructure](infrastructure.md).
@@ -30,7 +30,7 @@ Détails : [Infrastructure](infrastructure.md).
 ## Pile technique
 
 - **Back-end** : FastAPI, Pydantic v2, SQLAlchemy 2, Alembic, PostgreSQL 16, argon2-cffi + zxcvbn
-  (mots de passe), WeasyPrint (PDF), pypdf (extraits des annexes). CLI interne `python -m app.cli`
+  (mots de passe), WeasyPrint (PDF). CLI interne `python -m app.cli`
   (`install`, `migrate`, `reset-admin-password`).
 - **Front-end** : React 18, TypeScript strict, Vite, shadcn/ui + Tailwind v4, react-hook-form + zod,
   TanStack Query, dnd-kit, react-day-picker (locale `fr`). Aucune ressource tierce : polices et

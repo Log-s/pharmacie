@@ -73,17 +73,12 @@ en cours).
 
 ## Annexes
 
-Dans le menu **Annexes**, l'administrateur voit en plus le formulaire d'ajout et les boutons
-**Modifier** et **Supprimer**.
+Dans le menu **Annexes**, l'administrateur crée des dossiers et rédige des notes dans l'application,
+les modifie, les déplace et les supprime. Le détail est dans [Annexes](annexes.md#ce-que-fait-ladministrateur).
 
-- **Ajouter** : glissez un PDF dans la zone prévue, ou **Choisir un fichier** (20 Mo au plus).
-  **Titre (facultatif)** : par défaut, le nom du fichier. Seuls les vrais PDF sont acceptés, le
-  contenu du fichier est vérifié et pas seulement son extension.
-- **Extrait** : il est tiré automatiquement du PDF à l'ajout. C'est le texte affiché au survol de
-  l'icône « i ». **Modifier** permet de le corriger, ainsi que le titre.
-- **Supprimer** : refusé tant qu'une version publiée d'un template utilise l'annexe ; le message
-  liste les templates concernés. Retirez d'abord l'annexe de ces templates et republiez-les. Les
-  anciennes versions affichent ensuite « Annexe supprimée ».
+Supprimer un dossier ou une note est refusé tant que la dernière version d'un template utilise une
+note concernée ; le message liste les templates. Retirez d'abord la note de ces templates et
+republiez-les.
 
 ## Journal
 
