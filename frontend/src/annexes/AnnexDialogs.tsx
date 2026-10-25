@@ -70,7 +70,7 @@ export function FolderDialog({ folder, parentId, onClose }: { folder?: Folder; p
         <form onSubmit={submit} noValidate className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>{folder ? 'Renommer le dossier' : 'Nouveau dossier'}</DialogTitle>
-            <DialogDescription>{folder ? `Nouveau nom de « ${folder.name} ».` : 'Le dossier est créé dans le dossier affiché.'}</DialogDescription>
+            <DialogDescription>{folder ? `Nouveau nom de « ${folder.name} ».` : 'Le dossier est créé dans le dossier affiché.'}</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field data-invalid={!!error}>
@@ -128,7 +128,7 @@ export function MoveDialog({ target, index, onClose }: { target: Target; index: 
         >
           <DialogHeader>
             <DialogTitle>{target.kind === 'folder' ? 'Déplacer le dossier' : 'Déplacer la note'}</DialogTitle>
-            <DialogDescription>Choisissez le dossier de destination de « {targetName(target)} ».</DialogDescription>
+            <DialogDescription>Choisissez le dossier de destination de « {targetName(target)} ».</DialogDescription>
           </DialogHeader>
           <Field>
             <FieldLabel htmlFor="annex-move-destination">Destination</FieldLabel>
@@ -170,7 +170,7 @@ export function DeleteDialog({ target, tree, index, onClose, onDeleted }: { targ
     const below = index.descendants(target.folder.id)
     const notes = tree.notes.filter((note) => note.folder_id === target.folder.id || (note.folder_id && below.has(note.folder_id))).length
     const parts = [notes && plural(notes, 'note'), below.size && plural(below.size, 'sous-dossier')].filter(Boolean)
-    impact = `${parts.length ? `Seront aussi supprimés : ${parts.join(' et ')}. ` : 'Ce dossier est vide. '}Cette action est irréversible.`
+    impact = `${parts.length ? `Seront aussi supprimés : ${parts.join(' et ')}. ` : 'Ce dossier est vide. '}Cette action est irréversible.`
   }
   const remove = useMutation({
     mutationFn: () => annexRequest(targetUrl(target)),
@@ -194,7 +194,7 @@ export function DeleteDialog({ target, tree, index, onClose, onDeleted }: { targ
     <AlertDialog open onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{target.kind === 'folder' ? `Supprimer le dossier « ${targetName(target)} » ?` : `Supprimer la note « ${targetName(target)} » ?`}</AlertDialogTitle>
+          <AlertDialogTitle>{target.kind === 'folder' ? `Supprimer le dossier « ${targetName(target)} » ?` : `Supprimer la note « ${targetName(target)} » ?`}</AlertDialogTitle>
           <AlertDialogDescription>{impact}</AlertDialogDescription>
         </AlertDialogHeader>
         {conflict && (
