@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { FileTextIcon, XIcon } from 'lucide-react'
-import { useDeferredValue, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Spinner } from '@/components/ui/spinner'
+import { indexTree, pathLabel, useAnnexTree } from '@/annexes/api'
 import { api, ApiError } from '@/lib/api'
 import type { Annex } from '@/templates/api'
 
-/** Links a node to an annex (U6 `GET /api/annexes?q=`); shows « Annexe supprimée » for a dangling id. */
+/** Links a node to a note (`GET /api/annexes?q=`), showing its folder path; shows « Annexe supprimée » for a dangling id. */
 export function AnnexPicker({ id, value, onChange }: { id: string; value: string | null; onChange: (annexId: string | null) => void }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -24,6 +25,8 @@ export function AnnexPicker({ id, value, onChange }: { id: string; value: string
     queryFn: () => api<Annex>(`/annexes/${value}`),
     enabled: !!value,
   })
+  const tree = useAnnexTree()
+  const index = useMemo(() => (open && tree.data ? indexTree(tree.data) : undefined), [open, tree.data])
   const missing = current.error instanceof ApiError && current.error.status === 404
 
   return (
@@ -76,6 +79,7 @@ export function AnnexPicker({ id, value, onChange }: { id: string; value: string
                     className="flex w-full flex-col rounded-md px-2 py-1.5 text-left outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 aria-[current=true]:bg-accent"
                   >
                     <span className="truncate text-sm font-medium">{annex.title}</span>
+                    {index && <span className="truncate text-xs text-muted-foreground">{pathLabel(index, annex.folder_id)}</span>}
                     {annex.excerpt && <span className="line-clamp-2 text-xs text-muted-foreground">{annex.excerpt}</span>}
                   </button>
                 </li>
