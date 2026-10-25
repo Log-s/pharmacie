@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import type { TemplateTree } from '@/templates/schema'
 
-// U5 admin endpoints (docs/architecture.md, "U5: Templates API").
+// U5 admin endpoints (docs/dev/modules.md, "U5: Templates API").
 export type TemplateSummary = { id: string; name: string; archived_at: string | null; latest_version: number | null }
 export type TemplateVersion = { id: string; template_id: string; version: number; published_at: string; schema_json: TemplateTree }
 export type TemplateDetail = TemplateSummary & { versions: TemplateVersion[] }

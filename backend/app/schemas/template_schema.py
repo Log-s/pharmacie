@@ -1,5 +1,5 @@
 """The template tree (spec §3.2): a Pydantic v2 discriminated union on `type`, stored as
-`template_versions.schema_json`. Doc: docs/template-schema.md. The JSON Schema export
+`template_versions.schema_json`. Doc: docs/dev/template-schema.md. The JSON Schema export
 (`python -m app.schemas.template_schema`) is the contract the front's zod schema mirrors."""
 
 import json

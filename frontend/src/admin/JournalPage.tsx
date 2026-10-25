@@ -32,7 +32,7 @@ type JournalResponse = { items: Entry[]; total: number; page: number; page_size:
 const PAGE_SIZE = 50
 const ALL = 'all' // Radix Select refuses an empty value
 
-/** French labels of the actions documented in docs/architecture.md; unknown ones show their code. */
+/** French labels of the actions documented in docs/dev/modules.md; unknown ones show their code. */
 const ACTION_LABELS: Record<string, string> = {
   login_success: 'Connexion',
   login_failure: 'Échec de connexion',

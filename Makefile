@@ -6,10 +6,12 @@ COMPOSE ?= podman-compose
 ENGINE ?= podman
 export API_DEV_PORT ?= 8000
 export VITE_PORT ?= 5173
+DOCS_PORT ?= 8001
+DOCS_IMAGE := docker.io/squidfunk/mkdocs-material:9.6.14
 DEV_API := $(shell basename "$(CURDIR)" | tr A-Z a-z)-api-dev
 BACKEND_CHECK := ruff check . && ruff format --check . && pytest
 
-.PHONY: up down install migrate reset-admin-password backup restore audit test check e2e smoke secrets dev
+.PHONY: up down install migrate reset-admin-password backup restore audit test check e2e smoke secrets dev docs docs-serve
 
 secrets: ## create secrets/* if missing
 	@scripts/make-secrets.sh
@@ -60,3 +62,9 @@ dev: secrets ## db + api (reload, port API_DEV_PORT) + vite dev server (port VIT
 		sh -c 'python -m app.cli migrate && exec uvicorn app.main:app --reload --host 0.0.0.0'
 	trap '$(ENGINE) rm -f $(DEV_API) >/dev/null; $(COMPOSE) stop db' EXIT; trap 'exit 130' INT TERM; \
 		VITE_API_TARGET=http://127.0.0.1:$(API_DEV_PORT) npm --prefix frontend run dev
+
+docs: ## build the MkDocs site into site/ (strict: broken links fail)
+	$(ENGINE) run --rm -v "$(CURDIR):/docs:z" $(DOCS_IMAGE) build --strict
+
+docs-serve: ## live preview of the documentation on http://127.0.0.1:$(DOCS_PORT)
+	$(ENGINE) run --rm -it -p 127.0.0.1:$(DOCS_PORT):8000 -v "$(CURDIR):/docs:z" $(DOCS_IMAGE)

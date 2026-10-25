@@ -1,0 +1,65 @@
+site_name: Interventions pharmaceutiques
+site_description: Documentation utilisateur et technique
+docs_dir: docs
+site_dir: site
+strict: true
+
+theme:
+  name: material
+  language: fr
+  font: false # no third-party resources, like the app itself
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      toggle: { icon: material/weather-night, name: Thème sombre }
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: green
+      toggle: { icon: material/weather-sunny, name: Thème clair }
+
+plugins:
+  - search:
+      lang: fr
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences
+  - pymdownx.keys
+
+nav:
+  - Accueil: index.md
+  - Guide utilisateur:
+      - user/index.md
+      - Fiches: user/fiches.md
+      - Annexes: user/annexes.md
+      - Administration: user/administration.md
+      - Questions fréquentes: user/faq.md
+  - Documentation technique:
+      - dev/index.md
+      - Développement: dev/developpement.md
+      - Infrastructure: dev/infrastructure.md
+      - Déployer en production: dev/deploiement.md
+      - Mises à jour et migrations: dev/migrations.md
+      - Exploitation: dev/operations.md
+      - Sauvegarde et restauration: dev/backup-restore.md
+      - Configuration: dev/configuration.md
+      - Sécurité: dev/securite.md
+      - Schéma des templates: dev/template-schema.md
+      - Référence des modules: dev/modules.md

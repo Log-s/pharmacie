@@ -12,6 +12,7 @@ frontend/dist/
 frontend/test-results/
 frontend/playwright-report/
 backups/
+site/
 test-results/
 playwright-report/
 compose.override.yaml

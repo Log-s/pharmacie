@@ -21,20 +21,20 @@ make backup
 # backups/annexes-20261024T144151Z.tar.gz
 ```
 
-Avec podman : `make COMPOSE=podman-compose ENGINE=podman backup`. Le dump est cohérent (un seul
+Le dump est cohérent (un seul
 instantané) ; l'archive des annexes est prise juste après, hors transaction : sauvegardez de
 préférence hors des heures d'usage. Copiez ensuite `backups/` sur un support extérieur à la
 machine (la sauvegarde contient des données personnelles : noms des profils, journal).
 
-Pour planifier : `0 2 * * * cd /chemin/du/depot && make backup` (cron), avec purge des anciens
-fichiers selon votre politique de rétention.
+Pour planifier, voir [Exploitation](operations.md#sauvegardes-planifiees) (timer systemd ou cron, avec
+purge des anciens fichiers selon votre politique de rétention).
 
 ## Restaurer
 
 La restauration **remplace** la base et les annexes de la pile ciblée.
 
-1. Machine neuve : `make secrets` puis recopiez vos anciens `secrets/*` si vous les avez, puis
-   `make up`. Ne lancez pas `make install` : les comptes viennent de la sauvegarde.
+1. Machine neuve : préparez-la comme indiqué dans [Déploiement](deploiement.md), recopiez vos anciens
+   `secrets/*` si vous les avez (sinon `make secrets`), puis `make up`. Ne lancez pas `make install` : les comptes viennent de la sauvegarde.
 2. Restaurez les deux fichiers d'un même horodatage :
 
    ```sh
@@ -66,7 +66,7 @@ La restauration **remplace** la base et les annexes de la pile ciblée.
 3. Vérifiez :
 
    ```sh
-   docker compose exec -T db psql -U pharmacie pharmacie -c \
+   podman-compose exec -T db psql -U pharmacie pharmacie -c \
      "SELECT (SELECT count(*) FROM accounts) AS accounts, (SELECT count(*) FROM activity_log) AS journal"
    curl -k https://localhost:8443/api/health
    ```

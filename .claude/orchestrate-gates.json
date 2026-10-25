@@ -17,6 +17,6 @@
     ]
   },
   "docs": [
-    { "fragments": "docs/_pending", "target": "docs/architecture.md", "section": "## Modules" }
+    { "fragments": "docs/_pending", "target": "docs/dev/modules.md", "section": "## Modules" }
   ]
 }

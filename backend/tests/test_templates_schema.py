@@ -193,6 +193,6 @@ def test_duplicate_error_names_the_id():
 
 @pytest.mark.skipif(not SCHEMA_FILE.exists(), reason=f"{SCHEMA_FILE} not mounted")
 def test_committed_json_schema_is_up_to_date():
-    """Regenerate: see docs/template-schema.md (python -m app.schemas.template_schema)."""
+    """Regenerate: see docs/dev/template-schema.md (python -m app.schemas.template_schema)."""
     assert json.loads(json_schema_text())["required"] == ["nodes"]
     assert SCHEMA_FILE.read_text(encoding="utf-8") == json_schema_text()

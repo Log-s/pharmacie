@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // Client mirror of backend/app/schemas/template_schema.py (JSON Schema: ./template.schema.json,
-// doc: docs/template-schema.md). The server stays the authority; this gives early, French errors.
+// doc: docs/dev/template-schema.md). The server stays the authority; this gives early, French errors.
 
 export type NodeType = 'category' | 'checkbox_group' | 'radio_group' | 'date' | 'author' | 'reference' | 'text'
 type NodeBase = { id: string; label: string; required: boolean; help: string | null; annex_ref: { annex_id: string } | null }

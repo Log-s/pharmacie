@@ -1,41 +1,14 @@
-# Architecture
+# Module reference
 
-Internal web app to fill structured forms ("fiches") from versioned templates, export them as PDF
-and link PDF annexes. Product spec (French, authoritative): `specification.md`.
-
-## Runtime
-
-```
-browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built front in /srv)
-                                         │ /api/*
-                                         ▼
-                                  api (FastAPI/uvicorn :8000, uid 10001, volume annexes)
-                                         │ network "back" (internal: true)
-                                         ▼
-                                  db (PostgreSQL 16, volume pgdata, no published port)
-```
-
-- Secrets (`secrets/db_password`, `secrets/secret_key`) are compose secrets mounted at
-  `/run/secrets/*`, read by pydantic-settings; never baked into an image or committed.
-- Security headers (HSTS, CSP `default-src 'self'`, `frame-ancestors 'none'`, nosniff,
-  `Referrer-Policy: no-referrer`) and the SPA fallback live in `Caddyfile`.
-- The api container applies Alembic migrations at start (`python -m app.cli migrate`).
-
-## Code layout
-
-- `backend/app/main.py`: app factory, `/api/health`, router registration (every `app/api/*.py`
-  router is mounted under `/api`).
-- `backend/app/models/`: SQLAlchemy models for every table of spec §8; schema changes only through
-  Alembic (`backend/alembic/versions/`, revision ids `<unit>_<slug>`). A test fails if models and
-  migrations drift.
-- `backend/app/config/reference.py`: the only place that knows the reference format.
-- `frontend/src/main.tsx`: TanStack Query + react-router providers; routes in `src/router.tsx`.
+One section per build unit (U1 to U13), in the order they were merged: endpoints, services, front
+modules and their contracts. Written in English, like the code comments. The runtime overview is in
+[Architecture](index.md).
 
 ## Modules
 
-### U1: Socle (U1)
+### U1: Socle
 
-- Stack: `compose.yaml` (proxy, api, db), works with docker compose and podman-compose.
+- Stack: `compose.yaml` (proxy, api, db), run with podman-compose.
 - Endpoint: `GET /api/health` → `200 {"status": "ok"}` after a `SELECT 1` on the database.
 - Router stubs `backend/app/api/{auth,profiles,templates,annexes,forms,journal,admin}.py` export an
   empty `router`, mounted under `/api` (declare full paths inside, e.g. `/profiles`).
@@ -45,7 +18,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
 - `activity_log` is append-only: a statement trigger rejects every UPDATE and DELETE (TRUNCATE is
   still allowed, the test fixtures use it).
 - CLI: `python -m app.cli migrate` works; `install` and `reset-admin-password` are stubs (U2).
-- Tests: `scripts/test-backend.sh [cmd]` builds the `test` stage of `backend/Dockerfile` and runs it
+- Tests: `scripts/test-backend.sh [cmd]` builds the `test` stage of `backend/Containerfile` and runs it
   next to a throwaway Postgres 16 (`compose.test.yaml`, unique project name per run, torn down on
   exit). Fixtures in `backend/tests/conftest.py`: schema migrated once per session, all tables
   truncated after each test; `db` (Session) and `client` (TestClient).
@@ -56,7 +29,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   `VITE_API_TARGET`; api: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`,
   `ANNEXES_DIR` (secrets come from `/run/secrets/<name>` when present).
 
-### U2: U2: Comptes, sessions, sécurité d'accès
+### U2: Comptes, sessions, sécurité d'accès
 
 - Endpoints: `POST /api/auth/login {role: "admin"|"user", password}` → `Me` + cookie `session`
   (`HttpOnly; Secure; SameSite=Strict; Path=/`); 401 bad password, 423 locked (`Retry-After`),
@@ -98,7 +71,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   `user_client`, `login(client, role, password=None)`, `profile_factory(...)`; clients use
   `https://testserver`. Authz matrix: extend `ADMIN_ONLY` in `tests/test_authz_matrix.py`.
 
-### U4: U4: Profils et profil actif
+### U4: Profils et profil actif
 
 - Endpoints (`api/profiles.py`, logic in `services/profiles.py`, schemas in `schemas/profiles.py`):
   - `GET /api/profiles`: any session; active (non-archived) profiles, sorted by name.
@@ -124,7 +97,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   - `profile_switch` (profile_id = new profile, details `{from, to}`, `from` null when none).
 - No env var, no migration.
 
-### U5: U5: Templates API
+### U5: Templates API
 
 - Tree model: `app/schemas/template_schema.py` (`TemplateTree`, node types, `walk`), documented in
   `docs/template-schema.md`; JSON Schema export `frontend/src/templates/template.schema.json`
@@ -155,7 +128,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
 - For U6: annex references are only at `node.annex_ref.annex_id` (never on options).
 - No env vars.
 
-### U3: U3: Design system, app shell, auth UI
+### U3: Design system, app shell, auth UI
 
 - Design tokens and conventions: `frontend/DESIGN.md` (« Registre »); tokens are the CSS variables of
   `frontend/src/index.css` (light + `.dark`, toggled by `next-themes`, class on `<html>`, default = system).
@@ -197,7 +170,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   Kept as is: skip link, `aria-current` nav, radiogroup role choice (arrow keys), `role=alert`
   errors, contrast AA verified (DESIGN.md). Not fixed: `transition-all` inside shadcn `ui/` primitives.
 
-### U6: U6: Annexes (API)
+### U6: Annexes (API)
 
 - Endpoints (`api/annexes.py`, mounted under `/api`):
   - `GET /annexes?q=` list, both roles; `q` = case-insensitive match on title or excerpt
@@ -239,7 +212,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
 - Env var: `ANNEX_MAX_BYTES` (default 20971520 = 20 MiB); `ANNEXES_DIR` as before.
 - Tests: `backend/tests/test_annexes.py` (own `annexes_dir` fixture, tmp dir).
 
-### U9: U9: Journal API et durcissement
+### U9: Journal API et durcissement
 
 - `GET /api/journal?from=&to=&action=&profile_id=&page=&page_size=` (admin; 403 user, 401 anonymous):
   `{items, total, page, page_size}`, newest first (`at DESC, id DESC`). `from`/`to` are `YYYY-MM-DD`
@@ -261,10 +234,10 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   transaction (`DROP SCHEMA public CASCADE`, `CREATE SCHEMA`, `pg_restore --no-owner | psql
   --single-transaction`: all or nothing); a failure in either step removes `.new` and leaves db and
   annexes untouched. Only renames remain after the commit (old entries to `.old`, new in, both
-  dropped), then the stack restarts. Both honor `COMPOSE`. Procedure: `docs/backup-restore.md`.
+  dropped), then the stack restarts. Both honor `COMPOSE`. Procedure: [Sauvegarde et restauration](backup-restore.md).
 - `make audit` (`scripts/audit.sh`, honors `ENGINE`): builds the api and proxy images, then pip-audit
   (installed with `--target` in a throwaway container, `--path` on the image's site-packages),
-  `npm audit --omit=dev`, Trivy (`aquasec/trivy` container, images passed as `docker save` tarballs,
+  `npm audit --omit=dev`, Trivy (`aquasec/trivy` container, images passed as `podman save` tarballs,
   DB cached in volume `pharmacie-trivy-cache`) on api, proxy and `postgres:16-alpine` (pulled first, so the script is self-contained). Exit 1 on any
   pip-audit/npm finding or Trivy HIGH/CRITICAL; all severities are printed.
 - Caddyfile: `request_body { max_size 21MB }` on `/api/*` (annex limit `ANNEX_MAX_BYTES` 20 MiB, U6, plus
@@ -278,7 +251,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   - Trivy api (python:3.12-slim, Debian 13.7): OS 178 (CRITICAL 0, HIGH 44, MEDIUM 68, LOW 64,
     UNKNOWN 2; HIGH = util-linux, systemd, ncurses, acl, perl-base, mostly without a fix yet);
     pip's vendored libs 7 (HIGH 4, MEDIUM 2, LOW 1: urllib3 fix 2.8.0, msgpack fix 1.2.1) => bump the
-    pinned `pip` in `backend/Dockerfile` when a fixed release exists.
+    pinned `pip` in `backend/Containerfile` when a fixed release exists.
   - Trivy proxy (caddy:2.11-alpine): Alpine 1 (HIGH 1: brotli-libs, fix 1.2.1-r0); `usr/bin/caddy` Go
     21 (CRITICAL 0, HIGH 5, MEDIUM 14, LOW 1, UNKNOWN 1: x/net, Go stdlib) => rebuild on a newer caddy tag.
   - Trivy postgres:16-alpine: Alpine OS 0; `gosu` Go binary 61 (CRITICAL 1 stdlib CVE-2025-68121,
@@ -286,7 +259,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   - None fixed in this unit (images/dependencies are out of its scope); the gate stays red until the
     base images are bumped.
 
-### U7: U7: Fiches API
+### U7: Fiches API
 
 - Code: `api/forms.py` (routes), `services/forms.py` (create/update/delete/search), `services/form_validation.py`
   (`clean(db, tree, data) -> (data, errors)`), `services/references.py`, `schemas/forms.py`.
@@ -327,7 +300,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   profile null. U8 adds `form_export` and the route `GET /api/forms/{id}/pdf`.
 - No env var, no migration.
 
-### U11: U11: Éditeur de templates et moteur de rendu
+### U11: Éditeur de templates et moteur de rendu
 
 - Zod mirror of the tree: `templates/schema.ts` (`templateTree`, node types, `walk`, `isGroup`), French messages,
   server invariants (unique ids, one reference, trimmed labels). Parity test against `template.schema.json`
@@ -363,7 +336,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   (project convention); preview mode not in the URL. Not fixed (outside scope): React 18 ref warning raised by
   `components/ui/dialog`/`alert-dialog` overlays.
 
-### U10: U10: UI admin (profils, annexes, journal) et choix de profil
+### U10: UI admin (profils, annexes, journal) et choix de profil
 
 - Pages: `profiles/ProfilePickerPage` (`/profil`, cartes-boutons, Entrée/Espace), `profiles/ProfilesPage` (admin CRUD,
   `ProfileFormDialog` = nom, initiales, pastilles de couleur + `<input type=color>`, aperçu paraphe), `annexes/AnnexesPage`
@@ -401,7 +374,7 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
 - Aucune variable d'environnement, aucune migration, aucun changement backend. `App.test.tsx` (U3) adapté: le sélecteur
   d'en-tête est un bouton, et le test de déconnexion part de `/fiches` (le Journal appelle maintenant l'API).
 
-### U8: U8: Export PDF
+### U8: Export PDF
 
 - Route: `GET /api/forms/{form_id}/pdf` (`api/forms.py`), any authenticated session (every profile reads
   every form, spec §3.1; admin included). 200 `application/pdf`, `Content-Disposition: attachment;
@@ -421,13 +394,13 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
 - Offline: `LocalFetcher` (a `weasyprint.urls.URLFetcher`) raises for anything that is not a `file://`
   path under `app/pdf/` (http, https, data, other files), so rendering never touches the network.
   Rendering is synchronous in the sync route (threadpool).
-- Fonts: system Liberation Sans (then DejaVu Sans), installed by `backend/Dockerfile` (`base` stage, so
+- Fonts: system Liberation Sans (then DejaVu Sans), installed by `backend/Containerfile` (`base` stage, so
   also the test stage). No font file is bundled.
 - Tests: `backend/tests/test_pdf.py` (pypdf text extraction, 2-page fixture, headers, journal, injection,
   fetcher).
 - No env var, no migration, no dependency added (WeasyPrint 70, Jinja2, pypdf were already pinned).
 
-### U12: U12: UI Fiches (liste, éditeur, lecture seule, export PDF)
+### U12: UI Fiches (liste, éditeur, lecture seule, export PDF)
 
 - Pages (`frontend/src/forms/`, noms exportés inchangés pour `router.tsx`): `FormsListPage` (`/fiches`), `FormNewPage`
   (`/fiches/nouvelle`, utilisateur seul), `FormViewPage` (`/fiches/:id`), `FormEditPage` (`/fiches/:id/modifier`).
@@ -462,21 +435,21 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   Conservé: filtres et page dans l'URL, vrais liens, confirmation avant suppression, focus visible, Intl `fr-FR`.
   Non corrigé: avertissement React 18 « refs » du Slot shadcn (connu, hors périmètre).
 
-### U13: U13: E2E Playwright, audit final, déploiement
+### U13: E2E Playwright, audit final, déploiement
 
 - `make e2e` → `scripts/e2e.sh`: unique compose project `pharmacie-e2e-<pid>`, `compose.yaml` + a temp override
   that points the two compose secrets at generated files, HTTPS on `HTTPS_PORT` 18443, non-interactive
   `python -m app.cli install` (a second install must fail), then Playwright in
-  `mcr.microsoft.com/playwright:v1.64.1-noble` (`--network host --ipc=host`, host uid). `trap`: `down -v
+  `mcr.microsoft.com/playwright:v1.64.1-noble` (`--network host --ipc=host --userns=keep-id`). `trap`: `down -v
   --remove-orphans --rmi local` + temp dir removed, also on failure. Passwords come from the script via
   `E2E_ADMIN_PASSWORD`, `E2E_USER_PASSWORD`, `E2E_NEW_USER_PASSWORD`; `E2E_BASE_URL` overrides the target.
-- `make smoke-podman` → `scripts/e2e.sh smoke` with `COMPOSE=podman-compose ENGINE=podman`, port 18444:
+- `make smoke` → `scripts/e2e.sh smoke`, port 18444:
   up, `/api/health` 200, install, down. Env read: `COMPOSE`, `ENGINE`, `HTTPS_PORT`.
 - Suite: `frontend/e2e/scenario.spec.ts` (serial, 11 tests, admin and user in separate browser contexts),
   `e2e/pdf.ts` builds the annex PDF at test time. Config: `playwright.config.ts` uses `channel: 'chromium'`
   (full Chromium, new headless): the default headless shell has no PDF viewer, so the annex tab would
   download the file and close instead of keeping `/api/annexes/{id}/file` as its URL.
-- Not in `make check` (needs Docker + the Playwright image); `frontend/e2e` is not covered by `tsc -b`
+- Not in `make check` (needs podman + the Playwright image); `frontend/e2e` is not covered by `tsc -b`
   (`tsconfig.node.json` lists configs only), it is linted by `npm run lint`.
 - web-design-guidelines audit of the whole `frontend/src` (grep for the anti-patterns + axe-core 4.10 over
   every route, 2 roles, light/dark, 1280 and 820 px, with screenshots): 0 WCAG 2.0/2.1 A/AA violations,
@@ -487,6 +460,5 @@ browser ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, built
   4. Login top bar outside any landmark (axe `region`) → `<header>`.
   Not fixed: no `prefers-reduced-motion` rule (shadcn/tw-animate transitions are short fades; `index.css` is
   reserved: add `@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: .01ms
-  !important; transition-duration: .01ms !important } }`); `index.html` has the hyphen title and no
-  `theme-color` (outside `src`); straight apostrophes (project convention); `transition-all` in shadcn
+  !important; transition-duration: .01ms !important } }`); `index.html` has no `theme-color` (outside `src`); straight apostrophes (project convention); `transition-all` in shadcn
   `ui/button` (generated primitive); React 18 `ref` warnings from the shadcn Slot (known, no effect).

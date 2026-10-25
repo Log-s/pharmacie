@@ -1,4 +1,4 @@
-"""Forms API bodies and responses. The `data` format is documented in docs/architecture.md (U7)."""
+"""Forms API bodies and responses. The `data` format is documented in docs/dev/modules.md (U7)."""
 
 import re
 import uuid
