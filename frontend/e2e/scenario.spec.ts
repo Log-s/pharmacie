@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test'
 import { REFERENCE_RE } from '../src/config/reference.ts'
-import { tinyPdf } from './pdf.ts'
+import { pdfHeadings } from './pdf.ts'
 
 // Specification §11 « E2E Playwright », one serial scenario on a fresh production stack (scripts/e2e.sh
 // has already run the non-interactive install). Admin and user keep their own browser context.
@@ -14,6 +14,8 @@ const PROFILES = [
   { name: 'Camille Martin', number: 1 },
   { name: 'Louis Durand', number: 2 },
 ]
+const FOLDER = 'Protocoles'
+const SUBFOLDER = 'Dilutions'
 const ANNEX = { title: 'Protocole de dilution', excerpt: 'Diluer a 5 pour cent avant usage' }
 const TEMPLATE = 'Contrôle des préparations'
 const DETAIL = 'Flacon fendu au col'
@@ -86,14 +88,44 @@ test('admin : crée deux profils', async () => {
   }
 })
 
-test('admin : téléverse une annexe PDF', async () => {
+test('admin : crée un dossier, un sous-dossier et une note en gras et souligné', async () => {
   await admin.getByRole('link', { name: 'Annexes' }).click()
-  await admin.getByLabel('Titre (facultatif)').fill(ANNEX.title)
-  await admin.getByLabel('Fichier PDF').setInputFiles({ name: 'dilution.pdf', mimeType: 'application/pdf', buffer: tinyPdf(ANNEX.excerpt) })
-  await toast(admin, `Annexe « ${ANNEX.title} » ajoutée.`)
-  const item = admin.locator('main li').filter({ hasText: ANNEX.title })
-  await expect(item).toContainText('dilution.pdf')
-  await expect(item).toContainText(ANNEX.excerpt) // excerpt extracted from the PDF text
+  const content = admin.getByRole('region', { name: 'Contenu du dossier' })
+  const folder = async (name: string) => {
+    await admin.getByRole('button', { name: 'Nouveau dossier' }).click()
+    await admin.getByRole('dialog', { name: 'Nouveau dossier' }).getByLabel('Nom').fill(name)
+    await admin.getByRole('dialog', { name: 'Nouveau dossier' }).getByRole('button', { name: 'Créer' }).click()
+    await content.getByRole('link', { name }).click() // the new folder becomes the current one
+    await expect(admin.getByRole('heading', { name, level: 2 })).toBeVisible()
+  }
+  await folder(FOLDER)
+  await folder(SUBFOLDER)
+
+  await admin.getByRole('link', { name: 'Nouvelle note' }).click()
+  await expect(admin.getByRole('heading', { name: 'Nouvelle note' })).toBeVisible()
+  await admin.getByLabel('Titre', { exact: true }).fill(ANNEX.title)
+  const editor = admin.getByRole('textbox', { name: 'Contenu de la note' })
+  const format = (name: 'Gras' | 'Souligné') => admin.getByRole('button', { name }).click()
+  await editor.click()
+  await format('Gras')
+  await admin.keyboard.type('Diluer')
+  await format('Gras')
+  await admin.keyboard.type(' a ')
+  await format('Souligné')
+  await admin.keyboard.type('5 pour cent')
+  await format('Souligné')
+  await admin.keyboard.type(' avant usage')
+  await admin.getByRole('button', { name: 'Enregistrer' }).click()
+  await toast(admin, 'Note créée.')
+
+  await expect(admin).toHaveURL(/\/annexes\/notes\/[0-9a-f-]{36}$/)
+  const body = admin.locator('article.note-content')
+  await expect(body.locator('strong')).toHaveText('Diluer')
+  await expect(body.locator('u')).toHaveText('5 pour cent')
+  await expect(body).toContainText(ANNEX.excerpt)
+  const path = admin.getByRole('navigation', { name: "Fil d'Ariane" })
+  await expect(path.getByRole('link', { name: FOLDER })).toBeVisible()
+  await expect(path.getByRole('link', { name: SUBFOLDER })).toBeVisible()
 })
 
 test('admin : crée un template avec sous-champ conditionnel et annexe, puis le publie', async () => {
@@ -141,7 +173,7 @@ test('utilisateur : connexion et choix du profil', async () => {
   await expect(user.getByRole('button', { name: `Profil actif : ${PROFILES[0].name}. Changer de profil` })).toBeVisible()
 })
 
-test('utilisateur : remplit une fiche, l’infobulle de l’annexe s’ouvre dans un nouvel onglet', async () => {
+test('utilisateur : remplit une fiche, l’infobulle de l’annexe ouvre la note dans un nouvel onglet', async () => {
   await user.getByRole('link', { name: 'Nouvelle fiche' }).click()
   await user.getByRole('link', { name: new RegExp(TEMPLATE) }).click()
   await expect(user.getByLabel('Référence')).toHaveValue(REFERENCE_RE)
@@ -151,23 +183,17 @@ test('utilisateur : remplit une fiche, l’infobulle de l’annexe s’ouvre dan
   await user.getByRole('checkbox', { name: 'Écart constaté' }).check()
   await user.getByLabel(/Détail de l'écart/).fill(DETAIL)
 
-  // Annex info: hover shows the excerpt, the link opens the PDF in a new tab.
+  // Annex info: hover shows the excerpt, the link opens the note in a new tab.
   const info = user.getByRole('link', { name: 'Annexe : Contrôles effectués' })
   await info.hover()
   const card = user.getByRole('tooltip')
   await expect(card).toContainText(ANNEX.title)
   await expect(card).toContainText(ANNEX.excerpt)
-  const [pdf, popup] = await Promise.all([
-    userContext.waitForEvent('response', (r) => /\/api\/annexes\/[0-9a-f-]{36}\/file$/.test(r.url())),
-    userContext.waitForEvent('page'),
-    card.getByRole('link').click(),
-  ])
-  expect(pdf.status()).toBe(200)
-  expect(pdf.headers()['content-type']).toBe('application/pdf')
-  expect(new URL(pdf.url()).pathname).toMatch(/^\/api\/annexes\/[0-9a-f-]{36}\/file$/)
-  expect((await (await userContext.request.get(pdf.url())).body()).subarray(0, 5).toString()).toBe('%PDF-')
+  const [popup] = await Promise.all([userContext.waitForEvent('page'), card.getByRole('link').click()])
   await popup.waitForLoadState()
-  expect(new URL(popup.url()).pathname).toMatch(/^\/api\/annexes\/[0-9a-f-]{36}\/file$/)
+  expect(new URL(popup.url()).pathname).toMatch(/^\/annexes\/notes\/[0-9a-f-]{36}$/)
+  await expect(popup.getByRole('heading', { name: ANNEX.title, level: 1 })).toBeVisible()
+  await expect(popup.locator('article.note-content u')).toHaveText('5 pour cent')
 
   // Keyboard focus shows the same card.
   await popup.close()
@@ -229,6 +255,24 @@ test('admin : modifie puis supprime la fiche', async () => {
 
   await user.goto(ficheUrl)
   await expect(user.getByText('Fiche introuvable')).toBeVisible()
+})
+
+test('utilisateur : exporte le dossier Protocoles en PDF, les titres suivent l’arborescence', async () => {
+  await user.goto('/annexes')
+  await user.getByRole('region', { name: 'Contenu du dossier' }).getByRole('link', { name: FOLDER }).click()
+  const exportLink = user.getByRole('link', { name: /Exporter en PDF/ })
+  await expect(exportLink).toHaveAttribute('target', '_blank')
+  const response = await user.request.get((await exportLink.getAttribute('href')) ?? '')
+  expect(response.status()).toBe(200)
+  expect(response.headers()['content-type']).toBe('application/pdf')
+  const pdf = await response.body()
+  expect(pdf.subarray(0, 5).toString()).toBe('%PDF-')
+  // The chosen folder is the h1, its sub-folder an h2, and the note title an h3.
+  expect(pdfHeadings(pdf)).toEqual([
+    { level: 1, title: FOLDER },
+    { level: 2, title: SUBFOLDER },
+    { level: 3, title: ANNEX.title },
+  ])
 })
 
 test('admin : réinitialise le mot de passe utilisateur, l’ancien est refusé', async () => {
