@@ -50,7 +50,7 @@ backend/
   app/models/            modèles SQLAlchemy (une table par entité de la spécification §8)
   app/schemas/           corps de requêtes et réponses Pydantic, schéma des templates
   app/pdf/               gabarit HTML + CSS de l'export
-  app/config/reference.py  le seul endroit qui connaît le format des références (FIXME-\d{6})
+  app/config/reference.py  le seul endroit qui connaît le format des références (`MM-AAAA-NNN`, séquence mensuelle)
   alembic/versions/      migrations
   tests/                 pytest
 frontend/

@@ -272,10 +272,11 @@ modules and their contracts. Written in English, like the code comments. The run
   and empty values (`null`, `""`, `[]`, any node type) are dropped, never validated. Absent key = empty.
   Required = non-empty. A string with U+0000 or a lone surrogate (unstorable in PostgreSQL) → 422.
 - Validation errors: 422 `detail[] = {type, loc: ["body", "data", <node id>], msg: "« Label » : …"}`, all at once.
-- Reference: auto when `reference` is null/absent: `reference_counters` row for `REFERENCE_PREFIX`, atomic
+- Reference: auto when `reference` is null/absent: `reference_counters` row of the current month (key `MM-YYYY`, month read in `Europe/Paris`, so the sequence restarts at
+  `001` every month; `allocate`/`preview` take an injectable `now`), atomic
   `INSERT … ON CONFLICT DO UPDATE SET value = value + 1 RETURNING` (row lock until commit), numbers already taken
-  are skipped. A user-chosen reference does **not** bump the counter (a typo like `…-999999` must not exhaust the
-  sequence). Format checked with `is_valid_reference` (422), unique: 409 « Cette référence est déjà utilisée par
+  are skipped. A user-chosen reference does **not** bump the counter (a typo like `…-999` must not exhaust the
+  sequence). Format `MM-YYYY-NNN` (NNN: 3 digits, 4+ without leading zero past 999) checked with `is_valid_reference` (422), unique: 409 « Cette référence est déjà utilisée par
   une autre fiche. » (also on a race, via `uq_forms_reference`).
 - Endpoints (writes need `X-CSRF-Token`):
   - `GET /api/forms` (any session) → `{items: [FormSummary], total, page, page_size}`, newest first. Query: `q`
@@ -305,7 +306,7 @@ modules and their contracts. Written in English, like the code comments. The run
 - Zod mirror of the tree: `templates/schema.ts` (`templateTree`, node types, `walk`, `isGroup`), French messages,
   server invariants (unique ids, one reference, trimmed labels). Parity test against `template.schema.json`
   (`schema.test.ts`, tiny JSON Schema validator + the Pydantic-only rules). Reference format: `config/reference.ts`
-  (mirror of `backend/app/config/reference.py`: `REFERENCE_RE`, `isValidReference`, `REFERENCE_EXAMPLE`).
+  (mirror of `backend/app/config/reference.py`: `REFERENCE_RE`, `isValidReference`, `REFERENCE_HINT`, `REFERENCE_EXAMPLE` for the current month).
 - **Renderer** (`forms/renderer/index.ts`, for U12): `<FormRenderer tree mode="edit|readonly" defaultValue onSubmit
   onChange errors id headingLevel>{actions}</FormRenderer>`. `FormValue = {reference: string | null, data}` is ready for
   `POST/PUT /api/forms`. No `defaultValue` = new form: date today, author = active profile, reference = `GET
@@ -430,7 +431,7 @@ modules and their contracts. Written in English, like the code comments. The run
   2. Déclencheurs de date à bordure `border` trop pâle (contraste 1.4.11) → `border-input`.
   3. Libellés de chargement sans points de suspension → « Chargement… ».
   4. Zone « Modifications non enregistrées » insérée dynamiquement (non annoncée) → région `aria-live` toujours présente.
-  5. Placeholder de recherche sans exemple → « Ex. : amoxicilline, FIXME-000042… ».
+  5. Placeholder de recherche sans exemple → « Ex. : amoxicilline, 10-2026-042… ».
   6. Deux liens « Nouvelle fiche » (en-tête + état vide) → un seul.
   Conservé: filtres et page dans l'URL, vrais liens, confirmation avant suppression, focus visible, Intl `fr-FR`.
   Non corrigé: avertissement React 18 « refs » du Slot shadcn (connu, hors périmètre).

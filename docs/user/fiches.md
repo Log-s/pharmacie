@@ -14,7 +14,7 @@ Les filtres se combinent :
 | Filtre | Effet |
 |---|---|
 | **Rechercher** | cherche dans la référence et dans le texte saisi dans les fiches |
-| **Référence** | une référence précise, par exemple `FIXME-000042` |
+| **Référence** | une référence précise, par exemple `10-2026-042` |
 | **Du** / **Au** | période de création |
 | **Auteur** | la personne indiquée dans le champ Auteur de la fiche |
 | **Profil propriétaire** | le profil qui a créé la fiche |
@@ -37,7 +37,7 @@ plus ensuite.
 
 | Champ | Ce qu'il faut savoir |
 |---|---|
-| **Référence** | proposée automatiquement (`FIXME-000042`, numérotation suivie), modifiable ; elle doit être unique, un message l'indique si elle est déjà prise |
+| **Référence** | proposée automatiquement (format `MM-AAAA-NNN`, par exemple `10-2026-042` : mois et année de création, puis un numéro qui repart de `001` chaque mois), modifiable ; elle doit respecter ce format et être unique, un message l'indique si elle est déjà prise |
 | **Date** | préremplie avec la date du jour ; cliquez pour choisir une autre date dans le calendrier |
 | **Auteur** | prérempli avec le profil actif ; modifiable dans la liste des profils. Changer l'auteur ne change pas le propriétaire de la fiche |
 | **Cases à cocher** | plusieurs options possibles |
@@ -90,6 +90,6 @@ choisissez **Rester sur la fiche** pour ne rien perdre.
 ## Exporter en PDF
 
 Sur une fiche ouverte, **Exporter en PDF** télécharge un fichier nommé d'après la référence
-(`FIXME-000042.pdf`). Il reprend les catégories, les seules options cochées et leurs sous-champs,
+(`10-2026-042.pdf`). Il reprend les catégories, les seules options cochées et leurs sous-champs,
 la référence, l'auteur, la date, le profil propriétaire et la date de création, avec la référence et
 la pagination en pied de page. Chaque export est noté dans le journal.

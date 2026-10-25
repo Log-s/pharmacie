@@ -52,10 +52,13 @@ services:
 
 ## Format des références
 
-Le format provisoire `FIXME-\d{6}` est défini à deux endroits seulement :
-`backend/app/config/reference.py` (génération et validation, fait foi) et
-`frontend/src/config/reference.ts` (aide à la saisie). Changer de format demande de modifier les
-deux, leurs tests, et de vérifier que les références existantes restent valides ou de les migrer.
+Le format `MM-AAAA-NNN` (mois, année, puis un numéro de 3 chiffres, ou 4 chiffres et plus sans zéro
+initial au-delà de 999) est défini à deux endroits seulement : `backend/app/config/reference.py`
+(génération et validation, fait foi) et `frontend/src/config/reference.ts` (aide à la saisie).
+Le numéro repart de `001` chaque mois, le mois étant celui de la création en heure de Paris
+(un compteur par mois dans `reference_counters`, clé `MM-AAAA`). Changer de format demande de
+modifier les deux, leurs tests, et de vérifier que les références existantes restent valides ou de
+les migrer.
 
 ## Développement (`make`)
 
