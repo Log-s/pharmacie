@@ -21,7 +21,7 @@ def world(db, make_client, profile_factory):
 
     f1 = created(ca, controle, data("2026-10-01", "Lot alpha", b))
     f2 = created(ca, inventaire, data("2026-10-15", "Lot beta"))
-    f3 = created(cb, controle, data("2026-11-02", "Lot gamma", a), reference="FIXME-000500")
+    f3 = created(cb, controle, data("2026-11-02", "Lot gamma", a), reference="03-2026-500")
     return dict(a=a, b=b, ca=ca, cb=cb, controle=controle, inventaire=inventaire, f=[f1, f2, f3])
 
 
@@ -38,9 +38,9 @@ def test_search_and_filters(world, admin_client):
         ({}, [f3, f2, f1]),  # newest first
         ({"q": "alpha"}, [f1]),
         ({"q": "LOT"}, [f3, f2, f1]),
-        ({"q": "000500"}, [f3]),
+        ({"q": "2026-500"}, [f3]),
         ({"q": "%"}, []),
-        ({"reference": "0005"}, [f3]),
+        ({"reference": "-500"}, [f3]),
         ({"date_from": "2026-10-10"}, [f3, f2]),
         ({"date_to": "2026-10-31"}, [f2, f1]),
         ({"date_from": "2026-10-10", "date_to": "2026-10-31"}, [f2]),

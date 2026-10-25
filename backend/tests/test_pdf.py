@@ -74,7 +74,7 @@ def exported(db, make_client, profile_factory):
         CHECKS: [C1, C2],
         CHILD_OK: "Texte enfant visible",
     }
-    form = created(client, version, data, reference="FIXME-000042")
+    form = created(client, version, data, reference="03-2026-042")
     response = client.get(f"/api/forms/{form['id']}/pdf")
     pages = [p.extract_text() for p in PdfReader(io.BytesIO(response.content)).pages]
     return response, pages, form
@@ -114,7 +114,7 @@ def test_footer_on_every_page(exported):
     _, pages, _ = exported
     assert len(pages) == 2
     for number, page in enumerate(pages, 1):
-        assert "FIXME-000042" in page.rsplit("Référence : ", 1)[-1]
+        assert "03-2026-042" in page.rsplit("Référence : ", 1)[-1]
         assert f"Page {number} / 2" in page
 
 
@@ -122,11 +122,11 @@ def test_pdf_response_and_journal(exported, db):
     response, _, form = exported
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
-    assert response.headers["content-disposition"] == 'attachment; filename="FIXME-000042.pdf"'
+    assert response.headers["content-disposition"] == 'attachment; filename="03-2026-042.pdf"'
     assert response.content.startswith(b"%PDF-")
     row = journal(db)[-1]
     assert (row.action, row.target_type, row.target_id) == ("form_export", "form", form["id"])
-    assert row.details["reference"] == "FIXME-000042"
+    assert row.details["reference"] == "03-2026-042"
     assert row.account_role == "user"
     assert row.profile_id is not None
 

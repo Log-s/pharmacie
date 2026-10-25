@@ -159,7 +159,7 @@ def test_delete_refused_while_a_form_uses_any_version(admin_client, profile_fact
     publish(admin_client, template["id"])
     form = Form(
         template_version_id=v1["id"],
-        reference="FIXME-000001",
+        reference="03-2026-001",
         owner_profile_id=profile_factory().id,
     )
     db.add(form)

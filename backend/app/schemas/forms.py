@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from pydantic import AfterValidator, BaseModel, Field
 from pydantic_core import PydanticCustomError
 
-from app.config.reference import format_reference, is_valid_reference
+from app.config.reference import REFERENCE_HINT, is_valid_reference, reference_example
 from app.schemas.template_schema import Strict
 
 # PostgreSQL text/JSONB refuse U+0000; UTF-8 has no encoding for a lone surrogate.
@@ -27,10 +27,8 @@ SearchText = Annotated[str, AfterValidator(_storable)]  # free-text query params
 def _reference(value: str) -> str:
     value = value.strip()
     if not is_valid_reference(value):
-        example = format_reference(42)
-        raise PydanticCustomError(
-            "value_error", f"Référence invalide (format attendu : {example})."
-        )
+        hint = f"{REFERENCE_HINT}, par exemple {reference_example()}"
+        raise PydanticCustomError("value_error", f"Référence invalide (format attendu : {hint}).")
     return value
 
 
