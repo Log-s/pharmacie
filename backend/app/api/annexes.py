@@ -1,22 +1,30 @@
 import uuid
-from collections.abc import AsyncIterator
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse, Response
-from pydantic import AfterValidator, ValidationError
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse, Response
+from pydantic import AfterValidator
 from sqlalchemy import select
-from starlette.datastructures import UploadFile as UploadFile
+from sqlalchemy.orm import defer
 
-from app.api.deps import Auth, CurrentAuth, Db, get_request_ctx, require_admin
-from app.models import Annex
-from app.schemas.annexes import AnnexOut, AnnexUpdate, AnnexUpload, no_unstorable
+from app.api.deps import CurrentAuth, Db, get_request_ctx, require_admin
+from app.models import Annex, AnnexFolder
+from app.schemas.annexes import (
+    FolderIn,
+    FolderOut,
+    FolderUpdate,
+    NoteIn,
+    NoteOut,
+    NoteSummary,
+    NoteUpdate,
+    TreeOut,
+    no_unstorable,
+)
 from app.services import activity, annexes
 from app.services.activity import RequestCtx
-from app.settings import settings
 
 # Mounted under /api in app/main.py; declare full paths below it (e.g. "/annexes/...").
+# Serves /annexes (notes) and /annex-folders.
 router = APIRouter(tags=["annexes"])
 
 Ctx = Annotated[RequestCtx, Depends(get_request_ctx)]
@@ -29,143 +37,155 @@ def _get(db: Db, annex_id: uuid.UUID) -> Annex:
     return annex
 
 
+def _folder(db: Db, folder_id: uuid.UUID) -> AnnexFolder:
+    folder = db.get(AnnexFolder, folder_id)
+    if folder is None:
+        raise HTTPException(404, "Dossier introuvable.")
+    return folder
+
+
+def _changes(body: FolderUpdate | NoteUpdate, nullable: str) -> dict[str, Any]:
+    """Fields sent in the PATCH; an explicit null only counts for `nullable` (move to root)."""
+    sent = body.model_dump(exclude_unset=True)
+    return {k: v for k, v in sent.items() if v is not None or k == nullable}
+
+
+def _in_use(subject: str, names: list[str]) -> JSONResponse:
+    return JSONResponse(
+        status_code=409,
+        content={
+            "detail": f"Suppression impossible : {subject} par la version publiée de "
+            f"{', '.join(names)}.",
+            "templates": names,
+        },
+    )
+
+
+# --- notes ------------------------------------------------------------------------------------
+
+
+@router.get("/annexes/tree")
+def get_tree(_auth: CurrentAuth, db: Db) -> TreeOut:
+    """Both roles. Flat lists: the client builds the tree."""
+    folders = db.scalars(select(AnnexFolder).order_by(AnnexFolder.name, AnnexFolder.created_at))
+    notes = db.scalars(
+        select(Annex).options(defer(Annex.body_html)).order_by(Annex.title, Annex.created_at)
+    )
+    return TreeOut(
+        folders=[FolderOut.model_validate(f) for f in folders],
+        notes=[NoteSummary.model_validate(n) for n in notes],
+    )
+
+
 @router.get("/annexes")
 def list_annexes(
     _auth: CurrentAuth,
     db: Db,
     q: Annotated[str | None, Query(max_length=200), AfterValidator(no_unstorable)] = None,
-) -> list[AnnexOut]:
-    """Both roles. `q`: case-insensitive match on title or excerpt."""
-    query = select(Annex).order_by(Annex.title, Annex.created_at)
+) -> list[NoteSummary]:
+    """Both roles. `q`: case-insensitive match on title or body text."""
+    query = select(Annex).options(defer(Annex.body_html)).order_by(Annex.title, Annex.created_at)
     if q and q.strip():
         term = q.strip()
         query = query.where(
             Annex.title.icontains(term, autoescape=True)
-            | Annex.excerpt.icontains(term, autoescape=True)
+            | Annex.body_text.icontains(term, autoescape=True)
         )
-    return [AnnexOut.model_validate(a) for a in db.scalars(query)]
+    return [NoteSummary.model_validate(a) for a in db.scalars(query)]
+
+
+# GET /annexes/export.pdf (unit U2) goes here, before the {annex_id} route.
 
 
 @router.get("/annexes/{annex_id}")
-def get_annex(_auth: CurrentAuth, db: Db, annex_id: uuid.UUID) -> AnnexOut:
-    return AnnexOut.model_validate(_get(db, annex_id))
+def get_annex(_auth: CurrentAuth, db: Db, annex_id: uuid.UUID) -> NoteOut:
+    return NoteOut.model_validate(_get(db, annex_id))
 
 
-@router.get("/annexes/{annex_id}/file")
-def get_annex_file(_auth: CurrentAuth, db: Db, annex_id: uuid.UUID) -> FileResponse:
-    annex = _get(db, annex_id)
-    path = annexes.path_of(annex)
-    if not path.is_file():
-        raise HTTPException(404, "Le fichier de l'annexe est introuvable sur le serveur.")
-    return FileResponse(
-        path,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": annexes.content_disposition(annex.filename),
-            "X-Content-Type-Options": "nosniff",
-        },
-    )
-
-
-async def read_upload(
-    request: Request, _admin: Annotated[Auth, Depends(require_admin)]
-) -> AsyncIterator[tuple[UploadFile, AnnexUpload]]:
-    """Parses the multipart body itself, so auth, CSRF and the admin check have already run:
-    anonymous and user requests are refused before a byte of the body is read."""
-    declared = request.headers.get("content-length", "")
-    if declared.isdigit() and int(declared) > settings.annex_max_bytes + annexes.MULTIPART_OVERHEAD:
-        raise HTTPException(413, annexes.too_big_message())
-    async with request.form() as form:
-        file = form.get("file")
-        if not isinstance(file, UploadFile):
-            raise HTTPException(422, "Le fichier de l'annexe est obligatoire.")
-        title = form.get("title")
-        if isinstance(title, str) and not title.strip():
-            title = None  # an untouched browser input sends "": same as absent
-        try:
-            fields = AnnexUpload.model_validate({"title": title})
-        except ValidationError as exc:
-            raise RequestValidationError(exc.errors()) from exc
-        yield file, fields
-
-
-_UPLOAD_BODY = {
-    "required": True,
-    "content": {
-        "multipart/form-data": {
-            "schema": {
-                "type": "object",
-                "required": ["file"],
-                "properties": {
-                    "file": {"type": "string", "format": "binary"},
-                    "title": {"type": "string", "maxLength": 200},
-                },
-            }
-        }
-    },
-}
-
-
-@router.post(
-    "/annexes",
-    status_code=201,
-    dependencies=[Depends(require_admin)],
-    openapi_extra={"requestBody": _UPLOAD_BODY},  # the body is parsed by `read_upload`
-)
-def upload_annex(
-    db: Db, ctx: Ctx, upload: Annotated[tuple[UploadFile, AnnexUpload], Depends(read_upload)]
-) -> AnnexOut:
-    file, fields = upload
-    title = fields.title
-    annex_id, filename, size, sha256 = annexes.store_pdf(file.file, file.filename)
-    path = annexes.path_for(annex_id)
-    try:
-        annex = Annex(
-            id=annex_id,
-            title=title or filename[:-4].strip()[:200] or "Annexe",
-            filename=filename,
-            storage_path=path.name,
-            size=size,
-            sha256=sha256,
-            excerpt=annexes.extract_excerpt(path),
-        )
-        db.add(annex)
-        details = {"title": annex.title, "filename": filename, "size": size, "sha256": sha256}
-        activity.log(db, ctx, "annex_uploaded", "annex", annex_id, details)
-        db.commit()
-    except BaseException:
-        path.unlink(missing_ok=True)
-        raise
-    return AnnexOut.model_validate(annex)
+@router.post("/annexes", status_code=201, dependencies=[Depends(require_admin)])
+def create_annex(db: Db, ctx: Ctx, body: NoteIn) -> NoteOut:
+    if body.folder_id is not None:
+        _folder(db, body.folder_id)
+    html, text = annexes.sanitize(body.body_html)
+    annex = Annex(title=body.title, folder_id=body.folder_id, body_html=html, body_text=text)
+    db.add(annex)
+    db.flush()
+    activity.log(db, ctx, "annex_created", "annex", annex.id, {"title": annex.title})
+    db.commit()
+    return NoteOut.model_validate(annex)
 
 
 @router.patch("/annexes/{annex_id}", dependencies=[Depends(require_admin)])
-def update_annex(db: Db, ctx: Ctx, annex_id: uuid.UUID, body: AnnexUpdate) -> AnnexOut:
+def update_annex(db: Db, ctx: Ctx, annex_id: uuid.UUID, body: NoteUpdate) -> NoteOut:
     annex = _get(db, annex_id)
-    changes = body.model_dump(exclude_unset=True, exclude_none=True)
+    changes = _changes(body, nullable="folder_id")
+    if changes.get("folder_id") is not None:
+        _folder(db, changes["folder_id"])
+    if "body_html" in changes:
+        changes["body_html"], annex.body_text = annexes.sanitize(changes["body_html"])
     for field, value in changes.items():
         setattr(annex, field, value)
-    activity.log(db, ctx, "annex_updated", "annex", annex_id, {"fields": sorted(changes)})
+    details = {"title": annex.title, "fields": sorted(changes)}
+    activity.log(db, ctx, "annex_updated", "annex", annex_id, details)
     db.commit()
-    return AnnexOut.model_validate(annex)
+    return NoteOut.model_validate(annex)
 
 
 @router.delete("/annexes/{annex_id}", status_code=204, dependencies=[Depends(require_admin)])
 def delete_annex(db: Db, ctx: Ctx, annex_id: uuid.UUID) -> Response:
     annex = _get(db, annex_id)
-    if names := annexes.referencing_templates(db, annex_id):
-        return JSONResponse(
-            status_code=409,
-            content={
-                "detail": "Suppression impossible : annexe utilisée par la version publiée de "
-                f"{', '.join(names)}.",
-                "templates": names,
-            },
-        )
-    details = {"title": annex.title, "filename": annex.filename}
-    path = annexes.path_of(annex)
+    if names := annexes.referencing_templates(db, {annex_id}):
+        return _in_use("annexe utilisée", names)
     db.delete(annex)
-    activity.log(db, ctx, "annex_deleted", "annex", annex_id, details)
+    activity.log(db, ctx, "annex_deleted", "annex", annex_id, {"title": annex.title})
     db.commit()
-    path.unlink(missing_ok=True)  # after the commit: an orphan file is harmless, a dangling row not
+    return Response(status_code=204)
+
+
+# --- folders ----------------------------------------------------------------------------------
+
+
+@router.post("/annex-folders", status_code=201, dependencies=[Depends(require_admin)])
+def create_folder(db: Db, ctx: Ctx, body: FolderIn) -> FolderOut:
+    if body.parent_id is not None:
+        _folder(db, body.parent_id)
+    folder = AnnexFolder(name=body.name, parent_id=body.parent_id)
+    db.add(folder)
+    db.flush()
+    activity.log(db, ctx, "annex_folder_created", "annex_folder", folder.id, {"name": folder.name})
+    db.commit()
+    return FolderOut.model_validate(folder)
+
+
+@router.patch("/annex-folders/{folder_id}", dependencies=[Depends(require_admin)])
+def update_folder(db: Db, ctx: Ctx, folder_id: uuid.UUID, body: FolderUpdate) -> FolderOut:
+    folder = _folder(db, folder_id)
+    changes = _changes(body, nullable="parent_id")
+    parent_id = changes.get("parent_id")
+    if parent_id is not None:
+        _folder(db, parent_id)
+        if annexes.would_cycle(db, folder_id, parent_id):
+            raise HTTPException(
+                422, "Un dossier ne peut pas être déplacé dans lui-même ni dans un sous-dossier."
+            )
+    for field, value in changes.items():
+        setattr(folder, field, value)
+    details = {"name": folder.name, "fields": sorted(changes)}
+    activity.log(db, ctx, "annex_folder_updated", "annex_folder", folder_id, details)
+    db.commit()
+    return FolderOut.model_validate(folder)
+
+
+@router.delete("/annex-folders/{folder_id}", status_code=204, dependencies=[Depends(require_admin)])
+def delete_folder(db: Db, ctx: Ctx, folder_id: uuid.UUID) -> Response:
+    """Deletes the whole subtree (subfolders and notes) through the database cascade."""
+    folder = _folder(db, folder_id)
+    tree = {folder_id} | annexes.descendants(db, folder_id)
+    note_ids = set(db.scalars(select(Annex.id).where(Annex.folder_id.in_(tree))))
+    if names := annexes.referencing_templates(db, note_ids):
+        return _in_use("des annexes du dossier sont utilisées", names)
+    db.delete(folder)
+    details = {"name": folder.name, "subfolders": len(tree) - 1, "notes": len(note_ids)}
+    activity.log(db, ctx, "annex_folder_deleted", "annex_folder", folder_id, details)
+    db.commit()
     return Response(status_code=204)
