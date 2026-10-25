@@ -357,7 +357,7 @@ Annexes are notes (title + rich text) kept in a folder tree. No file is stored: 
   avertissement (boutons de jour), sans effet visible ici.
 - Tests: `AnnexInfo.test`, `AnnexesPage.test`, `NoteEditorPage.test`, `profiles.test`, `JournalPage.test` (Vitest). Parcours navigateur: Playwright
   (image `mcr.microsoft.com/playwright:v1.64.1-noble`, `--network host`), captures dans `frontend/test-results/U10/`.
-- Audit web-design-guidelines (JournalPage, AnnexesPage, AnnexUpload, AnnexDialogs, AnnexInfo, ProfilesPage, ProfileFormDialog,
+- Audit web-design-guidelines (JournalPage, AnnexesPage, AnnexDialogs, AnnexInfo, ProfilesPage, ProfileFormDialog,
   ProfilePickerPage, ProfileSwitcher), corrigé:
   1. Popper sans position (ref perdu sur `Button asChild`) → boutons natifs `buttonVariants`.
   2. Filtres, page du journal et recherche d'annexes absents de l'URL → `useSearchParams`.
