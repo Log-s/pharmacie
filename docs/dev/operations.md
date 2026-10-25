@@ -18,7 +18,7 @@ Toutes les commandes se lancent sous l'utilisateur de la pile, depuis le dossier
 | supprimer les vieilles images | `podman image prune` |
 
 !!! danger "Jamais `podman-compose down -v` en production"
-    `-v` supprime les volumes : base de données, annexes et autorité TLS.
+    `-v` supprime les volumes : base de données et autorité TLS.
 
 ## Sauvegardes planifiées
 
@@ -90,5 +90,4 @@ est verrouillé en boucle, consultez le journal (échecs de connexion et IP dans
   Code de sortie non nul s'il y a une vulnérabilité (Trivy : HIGH ou CRITICAL). Corrigez en
   rafraîchissant les images ([Mises à jour](migrations.md#rafraichir-les-images-de-base)) ou en
   montant la version de la dépendance.
-- **Disque** : le volume `annexes` grossit avec les PDF (20 Mo au plus chacun), `backups/` avec la
-  rétention.
+- **Disque** : `backups/` grossit avec la rétention, la base avec les notes d'annexes.

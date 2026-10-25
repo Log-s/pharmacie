@@ -17,7 +17,7 @@ import { DeleteDialog, FolderDialog, MoveDialog, type Target } from '@/annexes/A
 const shortDay = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium' })
 const folderHref = (id: string | null) => (id ? `/annexes?dossier=${id}` : '/annexes')
 const noteHref = (id: string) => `/annexes/notes/${id}`
-const rowLink = 'rounded-md outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50'
+const rowLink = 'rounded-md break-words outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50'
 
 type Dialog = { kind: 'folder'; rename: boolean } | { kind: 'move'; target: Target } | { kind: 'delete'; target: Target }
 
@@ -30,9 +30,18 @@ export default function AnnexesPage() {
   const dossier = params.get('dossier')
   const current = dossier ? index?.byId.get(dossier) : undefined
 
-  // The search belongs to the folder it was typed in: picking another folder leaves it.
-  const [typed, setTyped] = useState({ text: '', dossier })
-  const search = typed.dossier === dossier ? typed.text : ''
+  // The search lives in the URL (`q`); a folder link has none, so picking a folder leaves the search.
+  const search = params.get('q') ?? ''
+  const setSearch = (text: string) =>
+    setParams(
+      (previous) => {
+        const next = new URLSearchParams(previous)
+        if (text) next.set('q', text)
+        else next.delete('q')
+        return next
+      },
+      { replace: true },
+    )
   const [debounced, setDebounced] = useState('')
   const q = search.trim() ? debounced : ''
   const invalid = hasUnstorable(search)
@@ -50,11 +59,11 @@ export default function AnnexesPage() {
         <FieldLabel htmlFor="annex-search">Rechercher une annexe</FieldLabel>
         <div className="relative">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-          <Input id="annex-search" name="q" type="search" autoComplete="off" className="pl-8" placeholder="Titre ou contenu…" value={search} onChange={(e) => setTyped({ text: e.target.value, dossier })} aria-invalid={invalid} />
+          <Input id="annex-search" name="q" type="search" autoComplete="off" className="pl-8" placeholder="Titre ou contenu…" value={search} onChange={(e) => setSearch(e.target.value)} aria-invalid={invalid} />
         </div>
         {invalid && <FieldError>{UNSTORABLE_MESSAGE}</FieldError>}
       </Field>
-      {tree.isPending && <Skeleton className="h-48 w-full" aria-busy="true" aria-label="Chargement des annexes" />}
+      {tree.isPending && <Skeleton className="h-48 w-full" aria-busy="true" aria-label="Chargement des annexes…" />}
       {tree.isError && (
         <Alert variant="destructive" role="alert">
           <AlertTitle>Annexes indisponibles</AlertTitle>
@@ -279,7 +288,7 @@ function FolderContent({ index, folderId, isAdmin, onAction }: { index: TreeInde
 }
 
 function SearchResults({ results, index }: { results: ReturnType<typeof useAnnexSearch>; index: TreeIndex }) {
-  if (results.isPending) return <Skeleton className="h-32 w-full" aria-busy="true" aria-label="Recherche en cours" />
+  if (results.isPending) return <Skeleton className="h-32 w-full" aria-busy="true" aria-label="Recherche en cours…" />
   if (results.isError)
     return (
       <Alert variant="destructive" role="alert">

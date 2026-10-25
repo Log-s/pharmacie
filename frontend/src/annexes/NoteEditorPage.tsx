@@ -5,6 +5,7 @@ import { BoldIcon, Heading1Icon, Heading2Icon, Heading3Icon, ItalicIcon, LinkIco
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { toast } from 'sonner'
+import { focusFirstInvalid } from '@/admin/validation'
 import { PageHeader } from '@/components/PageHeader'
 import { StatusPage } from '@/components/StatusPage'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -90,7 +91,10 @@ function NoteEditor({ note, folderId }: { note?: Note; folderId: string | null }
         onSubmit={(event) => {
           event.preventDefault()
           if (!editor) return
-          if (!title.trim()) return setTitleError('Saisissez un titre.')
+          if (!title.trim()) {
+            setTitleError('Saisissez un titre.')
+            return focusFirstInvalid({ title: 'x' }, { title: 'note-title' })
+          }
           mutation.mutate({ title: title.trim(), body_html: editor.getHTML() })
         }}
       >
@@ -109,12 +113,13 @@ function NoteEditor({ note, folderId }: { note?: Note; folderId: string | null }
             maxLength={200}
             autoComplete="off"
             aria-invalid={!!titleError}
+            aria-describedby={titleError ? 'note-title-error' : undefined}
             onChange={(event) => {
               setTitle(event.target.value)
               setTitleError(undefined)
             }}
           />
-          {titleError && <FieldError>{titleError}</FieldError>}
+          {titleError && <FieldError id="note-title-error">{titleError}</FieldError>}
         </Field>
         <div className="flex flex-col gap-2">
           <span className="text-sm font-medium">Texte</span>

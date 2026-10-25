@@ -38,17 +38,14 @@ services:
 | `LOCKOUT_THRESHOLD` | `5` | échecs consécutifs avant verrouillage du compte |
 | `LOCKOUT_BASE_SECONDS` | `60` | première durée de verrouillage, doublée à chaque nouvel échec… |
 | `LOCKOUT_MAX_SECONDS` | `900` | …jusqu'à ce plafond |
-| `ANNEX_MAX_BYTES` | `20971520` (20 Mio) | taille maximale d'une annexe, voir ci-dessous |
 | `EXPOSE_API_DOCS` | `false` | `true` publie `/api/docs`, `/api/redoc`, `/api/openapi.json` ; développement seulement |
 | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` | `db`, `5432`, `pharmacie`, `pharmacie` | connexion à PostgreSQL |
-| `ANNEXES_DIR` | `/data/annexes` | dossier des annexes dans le conteneur |
 | `DB_PASSWORD`, `SECRET_KEY` | — | lus dans `/run/secrets/` ; ne les mettez pas dans l'environnement en production |
 
-!!! warning "Augmenter la taille des annexes"
-    La limite existe à trois endroits : `ANNEX_MAX_BYTES` (api), `request_body max_size 21MB` dans le
-    `Caddyfile` (au moins `ANNEX_MAX_BYTES` + 1 Mio, pour l'enveloppe multipart) et la limite
-    vérifiée par le front (`MAX_ANNEX_BYTES` dans `frontend/src/annexes/api.ts`, et le texte
-    « 20 Mo » de `AnnexUpload.tsx`). Modifiez les trois, puis `make up`.
+Les annexes sont des notes stockées dans la base : elles n'ont ni dossier de fichiers, ni volume, ni
+réglage de taille. Seule limite : `request_body max_size 1MB` dans le `Caddyfile` sur `/api/*`
+(réponse 413 au-delà), qui couvre une note de 200 000 caractères au plus (limite du schéma de
+l'API). Pour l'augmenter, modifiez les deux, puis `make up`.
 
 ## Format des références
 
@@ -70,6 +67,6 @@ les migrer.
 | `VITE_PORT` | `5173` | port du serveur Vite de `make dev` |
 | `VITE_API_TARGET` | `http://127.0.0.1:$API_DEV_PORT` | cible du relais `/api` de Vite |
 | `DOCS_PORT` | `8001` | port de `make docs-serve` |
-| `YES`, `DB`, `ANNEXES` | — | arguments de `make restore` |
+| `YES`, `DB` | — | arguments de `make restore` |
 
 Plusieurs copies du dépôt peuvent tourner en parallèle en changeant ces ports et `HTTPS_PORT`.

@@ -37,7 +37,7 @@ l'utilisateur hôte (`/etc/subuid`). Aucun démon, aucun privilège root sur l'h
   limitation des tentatives de connexion est en mémoire du processus).
 - Lit ses secrets dans `/run/secrets/` et sa configuration dans l'environnement
   ([Configuration](configuration.md)).
-- Stocke les annexes dans le volume `annexes` (`/data/annexes`).
+- Ne stocke aucun fichier : les annexes (dossiers et notes) vivent dans la base.
 
 ### db
 
@@ -67,13 +67,12 @@ podman-compose préfixe les volumes par le nom du projet (par défaut le nom du 
 | Volume | Contenu | Sauvegardé par `make backup` |
 |---|---|---|
 | `pgdata` | base PostgreSQL | oui (`pg_dump`) |
-| `annexes` | fichiers PDF des annexes | oui (archive tar.gz) |
 | `caddy_data` | autorité interne, certificats | non : régénérée si perdue (les postes devront approuver la nouvelle racine) |
 | `caddy_config` | configuration auto-sauvegardée de Caddy | non |
 
 ```sh
 podman volume ls --filter name=pharmacie
-podman volume inspect pharmacie_annexes --format '{{.Mountpoint}}'
+podman volume inspect pharmacie_pgdata --format '{{.Mountpoint}}'
 ```
 
 ## Secrets

@@ -43,7 +43,7 @@ avant : une migration a pu modifier le schéma, et l'ancienne version ne connaî
 ```sh
 git checkout "$(cat backups/version-avant-maj.txt)"
 podman-compose build          # anciennes images ; restore relance la pile avec elles
-make restore DB=backups/db-<horodatage>.dump ANNEXES=backups/annexes-<horodatage>.tar.gz
+make restore DB=backups/db-<horodatage>.dump
 ```
 
 Les fiches saisies entre la sauvegarde et le retour arrière sont perdues : décidez vite.
@@ -76,7 +76,7 @@ migrations divergent.
     ```
 
     Convention : l'identifiant de révision est un nom court explicite (`u1_initial`, `ship_activity_truncate`,
-    `profile_number`), pas un hachage.
+    `profile_number`, `annex_notes`), pas un hachage.
 
 3. **Relisez** le fichier : l'autogénération ne voit ni les triggers, ni les fonctions, ni les
    données à transformer. Écrivez `downgrade()`.
@@ -84,6 +84,14 @@ migrations divergent.
    `make migrate`), puis `make check`.
 
 Sur une instance, `make migrate` applique les migrations sans attendre un redémarrage de l'api.
+
+## Révision `annex_notes`
+
+Elle suit `profile_number` et remplace les annexes PDF par des notes en dossiers : suppression des
+colonnes `filename`, `storage_path`, `size`, `sha256` et `excerpt`, création de `annex_folders`,
+ajout de `folder_id`, `body_html`, `body_text` et `updated_at` à `annexes`. Elle vise une
+installation neuve et ne convertit rien. Le `downgrade()` remet l'ancien schéma sans les données
+(les annexes sont supprimées).
 
 ## Migrer vers un autre serveur
 
@@ -100,10 +108,10 @@ Pour déplacer une instance (changement de machine, d'hébergeur) :
     ```
 
 2. **Copiez** sur le nouveau serveur, par un canal chiffré : la dernière paire
-   `db-*.dump` / `annexes-*.tar.gz`, `caddy_data.tar`, le dossier `secrets/` et `.env`.
+   `db-*.dump`, `caddy_data.tar`, le dossier `secrets/` et `.env`.
 
     ```sh
-    scp -r backups/db-<h>.dump backups/annexes-<h>.tar.gz backups/caddy_data.tar secrets .env \
+    scp -r backups/db-<h>.dump backups/caddy_data.tar secrets .env \
       pharmacie@nouveau:~/transfert/
     ```
 
@@ -117,7 +125,7 @@ Pour déplacer une instance (changement de machine, d'hébergeur) :
     podman volume create pharmacie_caddy_data
     podman volume import pharmacie_caddy_data ~/transfert/caddy_data.tar
     make up
-    make restore DB=~/transfert/db-<h>.dump ANNEXES=~/transfert/annexes-<h>.tar.gz
+    make restore DB=~/transfert/db-<h>.dump
     ```
 
 4. **Basculez** le nom d'hôte (DNS) vers le nouveau serveur. Gardant `caddy_data`, les postes
@@ -140,7 +148,7 @@ podman volume rm pharmacie_pgdata
 # modifier l'image de db dans compose.yaml et compose.test.yaml (ex. postgres:17-alpine)
 make check                     # les tests passent sur la nouvelle version
 make up
-make restore DB=backups/db-<h>.dump ANNEXES=backups/annexes-<h>.tar.gz
+make restore DB=backups/db-<h>.dump
 ```
 
 Gardez la sauvegarde tant que la nouvelle version n'est pas validée.
