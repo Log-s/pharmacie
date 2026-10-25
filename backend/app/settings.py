@@ -20,8 +20,6 @@ class Settings(BaseSettings):
     db_password: str
     secret_key: str
     expose_api_docs: bool = False  # /api/docs, /api/redoc, /api/openapi.json: development only
-    annexes_dir: Path = Path("/data/annexes")
-    annex_max_bytes: int = 20 * 1024 * 1024  # largest accepted annex upload
     session_idle_minutes: int = 30  # sliding: every authenticated request pushes expiry back
     login_rate_limit: int = 10  # login attempts per IP per minute
     lockout_threshold: int = 5  # consecutive failures before the account locks

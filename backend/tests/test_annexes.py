@@ -1,60 +1,24 @@
-"""Annexes (spec §4): upload, excerpt, download, search, edit, delete guard, authz."""
+"""Annex notes and folders: CRUD per role, sanitising, cycles, recursive delete, search, journal."""
 
-import hashlib
-import io
-import re
 import uuid
 from datetime import UTC, datetime
 
 import pytest
-from pypdf import PdfWriter
-from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 from sqlalchemy import select
 
-from app.main import app
-from app.models import ActivityLog, Annex, Template, TemplateVersion
+from app.models import ActivityLog, Annex, AnnexFolder, Template, TemplateVersion
 from app.services import annexes
-from app.settings import settings
 
 
-def make_pdf(text: str | None = None) -> bytes:
-    """Tiny one-page PDF; with `text`, drawn through a minimal content stream (Helvetica)."""
-    writer = PdfWriter()
-    page = writer.add_blank_page(200, 200)
-    if text is not None:
-        font = writer._add_object(
-            DictionaryObject(
-                {
-                    NameObject("/Type"): NameObject("/Font"),
-                    NameObject("/Subtype"): NameObject("/Type1"),
-                    NameObject("/BaseFont"): NameObject("/Helvetica"),
-                }
-            )
-        )
-        page[NameObject("/Resources")] = DictionaryObject(
-            {NameObject("/Font"): DictionaryObject({NameObject("/F1"): font})}
-        )
-        stream = DecodedStreamObject()
-        stream.set_data(f"BT /F1 12 Tf 10 100 Td ({text}) Tj ET".encode())
-        page[NameObject("/Contents")] = writer._add_object(stream)
-    out = io.BytesIO()
-    writer.write(out)
-    return out.getvalue()
+def make_folder(client, name="Protocoles", parent_id=None) -> dict:
+    response = client.post("/api/annex-folders", json={"name": name, "parent_id": parent_id})
+    assert response.status_code == 201, response.text
+    return response.json()
 
 
-@pytest.fixture(autouse=True)
-def annexes_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, "annexes_dir", tmp_path / "annexes")
-    return settings.annexes_dir
-
-
-def upload(client, content: bytes, name="notice.pdf", **form):
-    files = {"file": (name, content, "application/pdf")}
-    return client.post("/api/annexes", files=files, data=form)
-
-
-def make_annex(client, text="Dosage", title="Notice", name="notice.pdf") -> dict:
-    response = upload(client, make_pdf(text), name, title=title)
+def make_note(client, title="Notice", body_html="<p>Dosage</p>", folder_id=None) -> dict:
+    body = {"title": title, "body_html": body_html, "folder_id": folder_id}
+    response = client.post("/api/annexes", json=body)
     assert response.status_code == 201, response.text
     return response.json()
 
@@ -81,336 +45,491 @@ def ref(annex_id) -> dict:
     }
 
 
-# --- upload -----------------------------------------------------------------------------------
+# --- notes: CRUD ------------------------------------------------------------------------------
 
 
-def test_upload_stores_the_pdf_under_its_uuid_and_records_metadata(admin_client, annexes_dir, db):
-    content = make_pdf("Posologie   adulte\n\n  500 mg")
-    response = upload(admin_client, content, "Notice de l'été.pdf", title="  Paracétamol ")
-    assert response.status_code == 201
-    body = response.json()
-    stored = annexes_dir / f"{body['id']}.pdf"
-    assert stored.read_bytes() == content
-    assert (body["title"], body["filename"]) == ("Paracétamol", "Notice de l'été.pdf")
-    assert body["size"] == len(content)
-    assert body["sha256"] == hashlib.sha256(content).hexdigest()
-    assert body["excerpt"] == "Posologie adulte 500 mg"
-    assert "storage_path" not in body
-    row = db.get(Annex, uuid.UUID(body["id"]))
-    assert row.storage_path == f"{body['id']}.pdf"
-    assert actions(db) == ["annex_uploaded"]
-
-
-def test_excerpt_is_cut_at_about_500_characters(admin_client):
-    body = make_annex(admin_client, text="mot " * 300)
-    assert len(body["excerpt"]) == 500
-
-
-def test_excerpt_is_empty_without_text(admin_client):
-    response = upload(admin_client, make_pdf())
-    assert response.status_code == 201
-    assert response.json()["excerpt"] == ""
-
-
-def test_title_defaults_to_the_file_name(admin_client):
-    assert upload(admin_client, make_pdf(), "Guide rapide.PDF").json()["title"] == "Guide rapide"
-
-
-def test_non_pdf_with_pdf_extension_is_rejected(admin_client, annexes_dir, db):
-    response = upload(admin_client, b"MZ\x90\x00 not a pdf", "virus.pdf")
-    assert response.status_code == 422
-    assert "PDF" in response.json()["detail"]
-    assert not annexes_dir.exists() or list(annexes_dir.iterdir()) == []
-    assert db.scalar(select(Annex)) is None
-    assert actions(db) == []
-
-
-def test_pdf_content_without_pdf_extension_is_rejected(admin_client):
-    assert upload(admin_client, make_pdf(), "notice.exe").status_code == 422
-
-
-def test_oversize_upload_is_rejected_and_leaves_nothing(admin_client, annexes_dir, db, monkeypatch):
-    content = make_pdf("x")
-    monkeypatch.setattr(settings, "annex_max_bytes", len(content) - 1)
-    response = upload(admin_client, content)
-    assert response.status_code == 413
-    assert "volumineux" in response.json()["detail"]
-    assert list(annexes_dir.iterdir()) == []
-    assert db.scalar(select(Annex)) is None
-
-
-def test_upload_at_exactly_the_limit_is_accepted(admin_client, monkeypatch):
-    content = make_pdf("x")
-    monkeypatch.setattr(settings, "annex_max_bytes", len(content))
-    assert upload(admin_client, content).status_code == 201
-
-
-def test_default_size_limit_is_20_mib():
-    assert type(settings).model_fields["annex_max_bytes"].default == 20 * 1024 * 1024
-
-
-def test_stored_name_never_derives_from_the_client_filename(admin_client, annexes_dir):
-    for name in ("../../etc/evil.pdf", "..\\..\\evil.pdf", "/abs/evil.pdf", "a\r\nb.pdf"):
-        body = upload(admin_client, make_pdf(), name).json()
-        assert re.fullmatch(r"[0-9a-f-]{36}\.pdf", (annexes_dir / f"{body['id']}.pdf").name)
-        assert "/" not in body["filename"] and "\\" not in body["filename"]
-        assert "\r" not in body["filename"] and "\n" not in body["filename"]
-    assert len(list(annexes_dir.iterdir())) == 4
-    assert {p.parent for p in annexes_dir.iterdir()} == {annexes_dir}
-    assert not (annexes_dir.parent / "evil.pdf").exists()
-
-
-def test_pdf_text_with_nul_uploads_with_a_clean_excerpt(admin_client, db):
-    body = upload(admin_client, make_pdf("A\\000B \\001C"), title="Notice").json()
-    assert body["excerpt"] == "AB C"
-    assert db.get(Annex, uuid.UUID(body["id"])).excerpt == "AB C"
-
-
-def test_nul_in_the_title_form_field_is_rejected_and_nothing_is_stored(
-    admin_client, annexes_dir, db
-):
-    response = upload(admin_client, make_pdf("x"), title="a\x00b")
-    assert response.status_code == 422
-    assert "nul" in response.json()["detail"][0]["msg"]
-    assert not annexes_dir.exists() or list(annexes_dir.iterdir()) == []
-    assert db.scalar(select(Annex)) is None
-    assert actions(db) == []
-
-
-def test_nul_in_title_or_excerpt_is_rejected_on_edit(admin_client, db):
-    annex = make_annex(admin_client, text="Dosage", title="Notice")
-    for field in ("title", "excerpt"):
-        response = admin_client.patch(f"/api/annexes/{annex['id']}", json={field: "a\u0000b"})
-        assert response.status_code == 422, field
-    row = db.get(Annex, uuid.UUID(annex["id"]))
-    db.refresh(row)
-    assert (row.title, row.excerpt) == ("Notice", "Dosage")
-    assert actions(db) == ["annex_uploaded"]
-
-
-def test_empty_or_blank_title_defaults_to_the_file_name(admin_client):
-    for blank in ("", "   "):
-        response = upload(admin_client, make_pdf(), "Guide rapide.pdf", title=blank)
-        assert response.status_code == 201, blank
-        assert response.json()["title"] == "Guide rapide"
-
-
-def test_excerpt_helper_drops_lone_surrogates_and_controls():
-    text = annexes.storable_excerpt("A\ud835 B\x00 \x01C\n  D")
-    assert text == "A B C D"
-    text.encode("utf-8")  # storable
-
-
-def test_filename_with_a_lone_surrogate_is_cleaned():
-    name = annexes.clean_filename("no\ud835tice.pdf")
-    assert name == "notice.pdf"
-    annexes.content_disposition(name)  # does not raise
-
-
-def test_search_with_nul_is_a_422_not_a_500(admin_client, user_client):
-    for client in (admin_client, user_client):
-        response = client.get("/api/annexes", params={"q": "a\x00b"})
-        assert response.status_code == 422
-        assert "nul" in response.json()["detail"][0]["msg"]
-
-
-def test_json_lone_surrogate_is_a_422_on_edit(admin_client):
-    annex = make_annex(admin_client)
-    response = admin_client.patch(
-        f"/api/annexes/{annex['id']}",
-        content=b'{"excerpt": "a\\ud835b"}',
-        headers={"Content-Type": "application/json"},
+def test_create_read_and_edit_a_note(admin_client, user_client, db):
+    folder = make_folder(admin_client)
+    note = make_note(
+        admin_client, " Notice ", "<p>Posologie   <strong>adulte</strong></p>", folder["id"]
     )
-    assert response.status_code == 422
-
-
-def test_missing_file_part_is_a_422(admin_client):
-    response = admin_client.post("/api/annexes", data={"title": "x"})
-    assert response.status_code == 422
-    assert "obligatoire" in response.json()["detail"]
-
-
-# --- upload body is read only after auth ------------------------------------------------------
-
-
-@pytest.fixture
-def body_guard(monkeypatch):
-    """Any attempt to parse the multipart body fails the request."""
-
-    def explode(*_args, **_kwargs):
-        raise AssertionError("request body was parsed")
-
-    monkeypatch.setattr("starlette.requests.Request.form", explode)
-
-
-def test_anonymous_and_user_uploads_are_refused_before_the_body_is_read(
-    client, user_client, body_guard
-):
-    big = b"%PDF-" + b"0" * (8 * 1024 * 1024)
-    assert upload(client, big).status_code == 401
-    assert upload(user_client, big).status_code == 403
-
-
-def test_oversize_content_length_is_refused_before_the_body_is_read(
-    admin_client, annexes_dir, db, monkeypatch, body_guard
-):
-    monkeypatch.setattr(settings, "annex_max_bytes", 1000)
-    response = upload(admin_client, b"%PDF-" + b"0" * (1024 * 1024 + 2000))
-    assert response.status_code == 413
-    assert "volumineux" in response.json()["detail"]
-    assert not annexes_dir.exists() or list(annexes_dir.iterdir()) == []
-    assert db.scalar(select(Annex)) is None
-
-
-def test_upload_is_documented_as_multipart_in_openapi():
-    schema = app.openapi()
-    body = schema["paths"]["/api/annexes"]["post"]["requestBody"]
-    assert "file" in body["content"]["multipart/form-data"]["schema"]["properties"]
-
-
-# --- download, list, search, edit -------------------------------------------------------------
-
-
-def test_file_is_served_inline_as_pdf(admin_client, user_client):
-    content = make_pdf("Notice")
-    annex = upload(admin_client, content, "Notice.pdf").json()
+    assert note["title"] == "Notice"
+    assert note["folder_id"] == folder["id"]
+    assert note["body_html"] == "<p>Posologie   <strong>adulte</strong></p>"
+    assert note["excerpt"] == "Posologie adulte"
     for client in (admin_client, user_client):
-        response = client.get(f"/api/annexes/{annex['id']}/file")
-        assert response.status_code == 200
-        assert response.content == content
-        assert response.headers["content-type"] == "application/pdf"
-        assert response.headers["content-disposition"].startswith('inline; filename="Notice.pdf"')
-        assert response.headers["x-content-type-options"] == "nosniff"
-
-
-def test_content_disposition_is_safe_for_non_ascii_and_quotes(admin_client, db):
-    annex = make_annex(admin_client)
-    row = db.get(Annex, uuid.UUID(annex["id"]))
-    row.filename = 'Fiche "été".pdf'  # multipart clients escape quotes themselves: set it directly
-    db.commit()
-    header = admin_client.get(f"/api/annexes/{annex['id']}/file").headers["content-disposition"]
-    assert header == (
-        "inline; filename=\"Fiche __t__.pdf\"; filename*=UTF-8''Fiche%20%22%C3%A9t%C3%A9%22.pdf"
-    )
-
-
-def test_file_missing_on_disk_is_a_404(admin_client, annexes_dir):
-    annex = make_annex(admin_client)
-    (annexes_dir / f"{annex['id']}.pdf").unlink()
-    assert admin_client.get(f"/api/annexes/{annex['id']}/file").status_code == 404
-
-
-def test_unknown_annex_is_a_404(user_client):
-    missing = uuid.uuid4()
-    assert user_client.get(f"/api/annexes/{missing}").status_code == 404
-    assert user_client.get(f"/api/annexes/{missing}/file").status_code == 404
-
-
-def test_list_and_search_work_for_both_roles(admin_client, user_client):
-    make_annex(admin_client, text="Interactions médicamenteuses", title="Guide Warfarine")
-    make_annex(admin_client, text="Conservation au frais", title="Insuline")
-    for client in (admin_client, user_client):
-        assert [a["title"] for a in client.get("/api/annexes").json()] == [
-            "Guide Warfarine",
-            "Insuline",
-        ]
-        assert [a["title"] for a in client.get("/api/annexes?q=warfARINE").json()] == [
-            "Guide Warfarine"
-        ]
-        assert [a["title"] for a in client.get("/api/annexes?q=CONSERVATION").json()] == [
-            "Insuline"
-        ]
-        assert client.get("/api/annexes?q=introuvable").json() == []
-        assert len(client.get("/api/annexes?q=%25").json()) == 0  # LIKE wildcards are literal
-        assert len(client.get("/api/annexes?q=%20").json()) == 2
-
-
-def test_admin_edits_title_and_excerpt(admin_client, user_client, db):
-    annex = make_annex(admin_client)
+        assert client.get(f"/api/annexes/{note['id']}").json() == note
     response = admin_client.patch(
-        f"/api/annexes/{annex['id']}", json={"title": " Nouveau titre ", "excerpt": "Résumé."}
+        f"/api/annexes/{note['id']}", json={"title": "Nouveau", "body_html": "<h1>Titre</h1>"}
     )
     assert response.status_code == 200
-    assert (response.json()["title"], response.json()["excerpt"]) == ("Nouveau titre", "Résumé.")
-    assert user_client.get(f"/api/annexes/{annex['id']}").json()["excerpt"] == "Résumé."
-    assert response.json()["sha256"] == annex["sha256"]
-    assert actions(db) == ["annex_uploaded", "annex_updated"]
+    assert (response.json()["title"], response.json()["excerpt"]) == ("Nouveau", "Titre")
+    assert response.json()["folder_id"] == folder["id"]  # untouched when not sent
+    assert response.json()["updated_at"] >= note["updated_at"]
+    assert actions(db) == ["annex_folder_created", "annex_created", "annex_updated"]
+
+
+def test_note_defaults_to_the_root_and_can_move_back_there(admin_client):
+    folder = make_folder(admin_client)
+    note = make_note(admin_client)
+    assert note["folder_id"] is None
+    moved = admin_client.patch(f"/api/annexes/{note['id']}", json={"folder_id": folder["id"]})
+    assert moved.json()["folder_id"] == folder["id"]
+    back = admin_client.patch(f"/api/annexes/{note['id']}", json={"folder_id": None})
+    assert back.json()["folder_id"] is None
+
+
+def test_excerpt_is_the_first_300_characters_of_the_text(admin_client):
+    note = make_note(admin_client, body_html="<p>" + "mot " * 200 + "</p>")
+    assert len(note["excerpt"]) == 300
+
+
+def test_unknown_folder_is_a_404_on_create_and_move(admin_client, db):
+    missing = str(uuid.uuid4())
+    response = admin_client.post("/api/annexes", json={"title": "x", "folder_id": missing})
+    assert response.status_code == 404
+    assert "Dossier" in response.json()["detail"]
+    note = make_note(admin_client)
+    patch = admin_client.patch(f"/api/annexes/{note['id']}", json={"folder_id": missing})
+    assert patch.status_code == 404
+    assert db.scalar(select(Annex.folder_id)) is None
+    assert actions(db) == ["annex_created"]
+
+
+def test_unknown_note_is_a_404(admin_client, user_client):
+    missing = uuid.uuid4()
+    assert user_client.get(f"/api/annexes/{missing}").status_code == 404
+    assert admin_client.patch(f"/api/annexes/{missing}", json={"title": "x"}).status_code == 404
+    assert admin_client.delete(f"/api/annexes/{missing}").status_code == 404
 
 
 @pytest.mark.parametrize(
-    "body", [{"title": ""}, {"title": "x" * 201}, {"filename": "a.pdf"}, {"sha256": "0"}]
+    "body",
+    [
+        {"title": ""},
+        {"title": "x" * 201},
+        {"title": "a\u0000b"},
+        {"title": "ok", "body_html": "a\u0000b"},
+        {"title": "ok", "body_html": "x" * 200_001},
+    ],
 )
-def test_invalid_edits_are_rejected(admin_client, body):
-    annex = make_annex(admin_client)
-    assert admin_client.patch(f"/api/annexes/{annex['id']}", json=body).status_code == 422
+def test_invalid_note_is_rejected_and_nothing_is_stored(admin_client, db, body):
+    assert admin_client.post("/api/annexes", json=body).status_code == 422
+    assert db.scalar(select(Annex)) is None
+    assert actions(db) == []
+
+
+def test_body_html_limit_is_200_000_characters(admin_client):
+    ok = make_note(admin_client, body_html="<p>" + "a" * 199_990 + "</p>")  # 199 997 characters
+    assert ok["excerpt"] == "a" * 300
+    patch = admin_client.patch(f"/api/annexes/{ok['id']}", json={"body_html": "x" * 200_001})
+    assert patch.status_code == 422
+
+
+@pytest.mark.parametrize("body", [{"title": ""}, {"filename": "a.pdf"}, {"body_text": "x"}])
+def test_invalid_note_edits_are_rejected(admin_client, body):
+    note = make_note(admin_client)
+    assert admin_client.patch(f"/api/annexes/{note['id']}", json=body).status_code == 422
+
+
+# --- sanitising (every write path) ------------------------------------------------------------
+
+DIRTY = (
+    '<p onclick="steal()" class="x">a <script>alert(1)</script><style>p{}</style> '
+    '<u>souligné</u> <a href="javascript:alert(1)">mauvais</a> '
+    '<a href="https://example.org" target="_blank" onmouseover="x()">bon</a> '
+    '<img src="x" onerror="y()"><iframe src="https://evil"></iframe><h4>quatre</h4> '
+    "<div>bloc</div></p>"
+)
+
+
+def written_both_ways(admin_client, db):
+    """The note as stored after a POST of DIRTY and after a PATCH of DIRTY on another note."""
+    posted = make_note(admin_client, body_html=DIRTY)
+    other = make_note(admin_client, title="Autre")
+    patched = admin_client.patch(f"/api/annexes/{other['id']}", json={"body_html": DIRTY}).json()
+    stored = [db.get(Annex, uuid.UUID(n["id"])) for n in (posted, patched)]
+    return [(n, row) for n, row in zip((posted, patched), stored, strict=True)]
+
+
+def test_script_tag_and_its_content_are_removed(admin_client, db):
+    for note, row in written_both_ways(admin_client, db):
+        for text in (note["body_html"], row.body_html, row.body_text):
+            assert "script" not in text and "alert" not in text
+            assert "<style" not in text and "p{}" not in text
+
+
+def test_event_handler_attributes_are_removed(admin_client, db):
+    for note, row in written_both_ways(admin_client, db):
+        for html in (note["body_html"], row.body_html):
+            for attribute in ("onclick", "onmouseover", "onerror", "class=", "target="):
+                assert attribute not in html
+
+
+def test_javascript_links_are_removed_and_other_links_get_rel(admin_client, db):
+    for note, row in written_both_ways(admin_client, db):
+        for html in (note["body_html"], row.body_html):
+            assert "javascript" not in html
+            assert '<a href="https://example.org" rel="noopener noreferrer">bon</a>' in html
+            assert html.count("<a ") == html.count('rel="noopener noreferrer"') == 2
+
+
+def test_mailto_is_kept_and_other_schemes_are_dropped(admin_client):
+    body = '<a href="mailto:a@b.fr">m</a><a href="ftp://x">f</a><a href="data:text/html,x">d</a>'
+    html = make_note(admin_client, body_html=body)["body_html"]
+    assert 'href="mailto:a@b.fr"' in html
+    assert "ftp:" not in html and "data:" not in html
+
+
+def stored_both_ways(admin_client, db, body):
+    """Sanitised HTML of `body` as returned and as stored, after a POST then a PATCH."""
+    posted = make_note(admin_client, body_html="<p>x</p>")
+    patched = admin_client.patch(f"/api/annexes/{posted['id']}", json={"body_html": body}).json()
+    created = make_note(admin_client, title="Autre", body_html=body)
+    rows = [(n, db.get(Annex, uuid.UUID(n["id"]))) for n in (created, patched)]
+    return [h for n, row in rows for h in (n["body_html"], row.body_html)]
+
+
+def test_generic_attributes_are_stripped_from_every_tag(admin_client, db):
+    cases = {
+        '<h1 title="x" lang="fr">T</h1>': "<h1>T</h1>",
+        '<p title lang id="i" class="c" style="color:red" data-x="1">T</p>': "<p>T</p>",
+        '<a href="https://ok" title="t" lang="fr">l</a>': (
+            '<a href="https://ok" rel="noopener noreferrer">l</a>'
+        ),
+    }
+    for body, expected in cases.items():
+        assert set(stored_both_ways(admin_client, db, body)) == {expected}
+
+
+def test_relative_scheme_relative_and_fragment_hrefs_are_removed(admin_client, db):
+    for href in ("/x", "//evil.example/x", "#frag"):
+        for html in stored_both_ways(admin_client, db, f'<a href="{href}">l</a>'):
+            assert "href" not in html and "evil" not in html and "frag" not in html
+    for href in ("https://ok", "http://ok", "mailto:a@b.fr"):
+        for html in stored_both_ways(admin_client, db, f'<a href="{href}">l</a>'):
+            assert f'href="{href}"' in html
+
+
+def test_underline_and_the_editor_tags_are_kept(admin_client, db):
+    body = (
+        "<h1>a</h1><h2>b</h2><h3>c</h3><p><strong>g</strong><em>i</em><u>u</u><s>s</s><br>"
+        "<code>c</code></p><ul><li>x</li></ul><ol><li>y</li></ol><blockquote>q</blockquote>"
+        "<pre>p</pre><hr>"
+    )
+    for note, row in written_both_ways(admin_client, db):
+        assert "<u>souligné</u>" in note["body_html"] == row.body_html
+    assert make_note(admin_client, body_html=body)["body_html"] == body
+
+
+def test_other_tags_are_stripped_but_their_text_survives(admin_client, db):
+    for note, row in written_both_ways(admin_client, db):
+        for html in (note["body_html"], row.body_html):
+            for tag in ("<img", "<iframe", "<h4", "<div"):
+                assert tag not in html
+            assert "quatre" in html and "bloc" in html
+
+
+def test_body_text_is_plain_normalised_text(admin_client, db):
+    body = (
+        "<h1>Titre</h1><p>Un  <strong>mot</strong>\n  &amp; <em>deux</em></p>"
+        "<ul><li>a</li><li>b</li></ul>"
+    )
+    note = make_note(admin_client, body_html=body)
+    row = db.get(Annex, uuid.UUID(note["id"]))
+    assert row.body_text == "Titre Un mot & deux a b"
+    assert annexes.sanitize("<p>a</p><p>b<br>c</p>")[1] == "a b c"
+    for _note, row in written_both_ways(admin_client, db):
+        assert row.body_text == "a souligné mauvais bon quatre bloc"
+
+
+# --- search -----------------------------------------------------------------------------------
+
+
+def test_list_and_search_on_title_or_body_text_for_both_roles(admin_client, user_client):
+    make_note(admin_client, "Guide Warfarine", "<p>Interactions médicamenteuses</p>")
+    make_note(admin_client, "Insuline", "<p>Conservation au <strong>frais</strong></p>")
+    for client in (admin_client, user_client):
+        titles = [n["title"] for n in client.get("/api/annexes").json()]
+        assert titles == ["Guide Warfarine", "Insuline"]
+        assert [n["title"] for n in client.get("/api/annexes?q=warfARINE").json()] == [
+            "Guide Warfarine"
+        ]
+        assert [n["title"] for n in client.get("/api/annexes?q=CONSERVATION").json()] == [
+            "Insuline"
+        ]
+        assert client.get("/api/annexes?q=strong").json() == []  # markup is not searched
+        assert client.get("/api/annexes?q=introuvable").json() == []
+        assert len(client.get("/api/annexes?q=%25").json()) == 0  # LIKE wildcards are literal
+        assert len(client.get("/api/annexes?q=%20").json()) == 2
+        assert set(client.get("/api/annexes").json()[0]) == {
+            "id",
+            "title",
+            "folder_id",
+            "excerpt",
+            "updated_at",
+        }
+
+
+def test_search_with_nul_is_a_422(admin_client, user_client):
+    for client in (admin_client, user_client):
+        assert client.get("/api/annexes", params={"q": "a\x00b"}).status_code == 422
+
+
+# --- tree -------------------------------------------------------------------------------------
+
+
+def test_tree_lists_folders_and_notes_flat_for_both_roles(admin_client, user_client):
+    root = make_folder(admin_client, "Racine")
+    child = make_folder(admin_client, "Enfant", root["id"])
+    note = make_note(admin_client, "Note", "<p>Texte</p>", child["id"])
+    loose = make_note(admin_client, "A la racine", "")
+    for client in (admin_client, user_client):
+        tree = client.get("/api/annexes/tree").json()
+        assert set(tree) == {"folders", "notes"}
+        assert tree["folders"] == [
+            {"id": child["id"], "name": "Enfant", "parent_id": root["id"]},
+            {"id": root["id"], "name": "Racine", "parent_id": None},
+        ]
+        assert [(n["id"], n["folder_id"], n["excerpt"]) for n in tree["notes"]] == [
+            (loose["id"], None, ""),
+            (note["id"], child["id"], "Texte"),
+        ]
+        assert set(tree["notes"][0]) == {"id", "title", "folder_id", "excerpt", "updated_at"}
+
+
+def test_tree_is_declared_before_the_note_id_route():
+    from app.api.annexes import router
+
+    paths = [route.path for route in router.routes]
+    assert paths.index("/annexes/tree") < paths.index("/annexes/{annex_id}")
+
+
+# --- folders: CRUD and cycles -----------------------------------------------------------------
+
+
+def test_folder_create_rename_and_move(admin_client, db):
+    a, b = make_folder(admin_client, "A"), make_folder(admin_client, "B")
+    sub = make_folder(admin_client, " Sous ", a["id"])
+    assert sub["name"] == "Sous"
+    assert sub["parent_id"] == a["id"]
+    renamed = admin_client.patch(f"/api/annex-folders/{sub['id']}", json={"name": "Renommé"})
+    assert (renamed.json()["name"], renamed.json()["parent_id"]) == ("Renommé", a["id"])
+    moved = admin_client.patch(f"/api/annex-folders/{sub['id']}", json={"parent_id": b["id"]})
+    assert moved.json()["parent_id"] == b["id"]
+    root = admin_client.patch(f"/api/annex-folders/{sub['id']}", json={"parent_id": None})
+    assert root.json()["parent_id"] is None
+    assert actions(db) == ["annex_folder_created"] * 3 + ["annex_folder_updated"] * 3
+
+
+def test_unknown_folder_or_parent_is_a_404(admin_client):
+    missing = str(uuid.uuid4())
+    folder = make_folder(admin_client)
+    assert (
+        admin_client.post(
+            "/api/annex-folders", json={"name": "x", "parent_id": missing}
+        ).status_code
+        == 404
+    )
+    assert (
+        admin_client.patch(f"/api/annex-folders/{missing}", json={"name": "x"}).status_code == 404
+    )
+    assert (
+        admin_client.patch(
+            f"/api/annex-folders/{folder['id']}", json={"parent_id": missing}
+        ).status_code
+        == 404
+    )
+    assert admin_client.delete(f"/api/annex-folders/{missing}").status_code == 404
+
+
+@pytest.mark.parametrize("body", [{"name": ""}, {"name": "x" * 201}, {"name": "a\u0000b"}])
+def test_invalid_folder_name_is_rejected(admin_client, db, body):
+    assert admin_client.post("/api/annex-folders", json=body).status_code == 422
+    folder = make_folder(admin_client)
+    assert admin_client.patch(f"/api/annex-folders/{folder['id']}", json=body).status_code == 422
+    assert db.scalar(select(AnnexFolder.name)) == "Protocoles"
+
+
+def chain(admin_client) -> list[dict]:
+    """a > b > c, plus an unrelated d."""
+    a = make_folder(admin_client, "a")
+    b = make_folder(admin_client, "b", a["id"])
+    c = make_folder(admin_client, "c", b["id"])
+    return [a, b, c, make_folder(admin_client, "d")]
+
+
+def test_moving_a_folder_into_itself_or_a_descendant_is_a_422(admin_client, db):
+    a, b, c, _ = chain(admin_client)
+    for target in (a, b, c):  # a under a, b, c; b under b, c; c under c
+        response = admin_client.patch(
+            f"/api/annex-folders/{a['id']}", json={"parent_id": target["id"]}
+        )
+        assert response.status_code == 422, target["name"]
+        assert "sous-dossier" in response.json()["detail"]
+    assert (
+        admin_client.patch(f"/api/annex-folders/{b['id']}", json={"parent_id": c["id"]}).status_code
+        == 422
+    )
+    assert (
+        admin_client.patch(f"/api/annex-folders/{c['id']}", json={"parent_id": c["id"]}).status_code
+        == 422
+    )
+    parents = {f.name: f.parent_id for f in db.scalars(select(AnnexFolder))}
+    assert parents == {"a": None, "b": uuid.UUID(a["id"]), "c": uuid.UUID(b["id"]), "d": None}
+    assert "annex_folder_updated" not in actions(db)
+
+
+def test_a_valid_move_succeeds_and_cycle_helpers_agree(admin_client, db):
+    a, b, c, d = chain(admin_client)
+    ids = {n: uuid.UUID(f["id"]) for n, f in zip("abcd", (a, b, c, d), strict=True)}
+    assert annexes.descendants(db, ids["a"]) == {ids["b"], ids["c"]}
+    assert annexes.descendants(db, ids["c"]) == set()
+    assert annexes.would_cycle(db, ids["a"], ids["c"])
+    assert annexes.would_cycle(db, ids["a"], ids["a"])
+    assert not annexes.would_cycle(db, ids["a"], ids["d"])
+    assert not annexes.would_cycle(db, ids["c"], ids["a"])
+    assert not annexes.would_cycle(db, ids["a"], None)
+    # a whole subtree moves under d; c (a descendant of b) goes up to the root
+    assert (
+        admin_client.patch(f"/api/annex-folders/{a['id']}", json={"parent_id": d["id"]}).status_code
+        == 200
+    )
+    assert (
+        admin_client.patch(f"/api/annex-folders/{c['id']}", json={"parent_id": None}).status_code
+        == 200
+    )
+    assert annexes.descendants(db, ids["d"]) == {ids["a"], ids["b"]}
 
 
 # --- delete -----------------------------------------------------------------------------------
 
 
-def test_delete_is_refused_while_the_latest_version_references_the_annex(
-    admin_client, annexes_dir, db
-):
-    annex = make_annex(admin_client)
-    add_template(db, "Zèbre", ref(annex["id"]))
-    add_template(db, "Alpha", {"categories": []}, ref(annex["id"]))
-    add_template(db, "Archivé", ref(annex["id"]), archived=True)
+def test_delete_of_a_note_is_refused_while_the_latest_version_references_it(admin_client, db):
+    note = make_note(admin_client)
+    add_template(db, "Zèbre", ref(note["id"]))
+    add_template(db, "Alpha", {"categories": []}, ref(note["id"]))
+    add_template(db, "Archivé", ref(note["id"]), archived=True)
     add_template(db, "Autre", ref(uuid.uuid4()))
-    response = admin_client.delete(f"/api/annexes/{annex['id']}")
+    response = admin_client.delete(f"/api/annexes/{note['id']}")
     assert response.status_code == 409
     assert response.json()["templates"] == ["Alpha", "Archivé", "Zèbre"]
     assert "Alpha, Archivé, Zèbre" in response.json()["detail"]
-    assert (annexes_dir / f"{annex['id']}.pdf").exists()
-    assert db.get(Annex, uuid.UUID(annex["id"])) is not None
-    assert actions(db) == ["annex_uploaded"]
+    assert db.get(Annex, uuid.UUID(note["id"])) is not None
+    assert actions(db) == ["annex_created"]
 
 
-def test_delete_is_allowed_when_only_an_older_version_references_it(admin_client, annexes_dir, db):
-    annex = make_annex(admin_client)
-    add_template(db, "Ancien", ref(annex["id"]), {"categories": []})
-    response = admin_client.delete(f"/api/annexes/{annex['id']}")
+def test_delete_of_a_note_is_allowed_when_only_an_older_version_references_it(admin_client, db):
+    note = make_note(admin_client)
+    add_template(db, "Ancien", ref(note["id"]), {"categories": []})
+    assert admin_client.delete(f"/api/annexes/{note['id']}").status_code == 204
+    assert db.get(Annex, uuid.UUID(note["id"])) is None
+    assert admin_client.get(f"/api/annexes/{note['id']}").status_code == 404
+    assert actions(db) == ["annex_created", "annex_deleted"]
+
+
+def test_deleting_a_folder_deletes_its_whole_subtree(admin_client, db):
+    a, b, _, d = chain(admin_client)
+    make_note(admin_client, "dans a", folder_id=a["id"])
+    make_note(admin_client, "dans b", folder_id=b["id"])
+    keep = make_note(admin_client, "dans d", folder_id=d["id"])
+    response = admin_client.delete(f"/api/annex-folders/{a['id']}")
     assert response.status_code == 204
-    assert not (annexes_dir / f"{annex['id']}.pdf").exists()
-    assert db.get(Annex, uuid.UUID(annex["id"])) is None
-    assert admin_client.get(f"/api/annexes/{annex['id']}").status_code == 404
-    assert actions(db) == ["annex_uploaded", "annex_deleted"]
+    db.expire_all()
+    assert [f.name for f in db.scalars(select(AnnexFolder))] == ["d"]
+    assert [str(n.id) for n in db.scalars(select(Annex))] == [keep["id"]]
+    assert actions(db)[-1] == "annex_folder_deleted"
+    row = db.scalars(select(ActivityLog).order_by(ActivityLog.id.desc())).first()
+    assert (row.details["name"], row.details["notes"], row.details["subfolders"]) == ("a", 2, 2)
 
 
-def test_delete_of_an_unreferenced_annex_and_unknown_id(admin_client):
-    annex = make_annex(admin_client)
-    assert admin_client.delete(f"/api/annexes/{annex['id']}").status_code == 204
-    assert admin_client.delete(f"/api/annexes/{annex['id']}").status_code == 404
+def test_folder_delete_is_refused_when_a_note_of_the_subtree_is_referenced(admin_client, db):
+    a, b, c, _ = chain(admin_client)
+    make_note(admin_client, "libre", folder_id=a["id"])
+    used = make_note(admin_client, "utilisée", folder_id=c["id"])
+    add_template(db, "Zèbre", ref(used["id"]))
+    add_template(db, "Alpha", ref(used["id"]))
+    response = admin_client.delete(f"/api/annex-folders/{a['id']}")
+    assert response.status_code == 409
+    assert response.json()["templates"] == ["Alpha", "Zèbre"]
+    assert "Alpha, Zèbre" in response.json()["detail"]
+    db.expire_all()
+    assert len(db.scalars(select(AnnexFolder)).all()) == 4
+    assert len(db.scalars(select(Annex)).all()) == 2
+    assert "annex_folder_deleted" not in actions(db)
+    # deleting a sibling subtree is unaffected
+    assert admin_client.delete(f"/api/annex-folders/{c['id']}").status_code == 409
+    assert admin_client.delete(f"/api/annex-folders/{b['id']}").status_code == 409
+
+
+def test_folder_delete_ignores_templates_whose_old_version_only_references_a_note(admin_client, db):
+    folder = make_folder(admin_client)
+    note = make_note(admin_client, folder_id=folder["id"])
+    add_template(db, "Ancien", ref(note["id"]), {"categories": []})
+    assert admin_client.delete(f"/api/annex-folders/{folder['id']}").status_code == 204
+    assert db.scalar(select(Annex)) is None
 
 
 # --- authz ------------------------------------------------------------------------------------
 
 
 def test_user_can_read_but_not_write(admin_client, user_client, db):
-    annex = make_annex(admin_client)
+    folder = make_folder(admin_client)
+    note = make_note(admin_client, folder_id=folder["id"])
     assert user_client.get("/api/annexes").status_code == 200
-    assert user_client.get(f"/api/annexes/{annex['id']}").status_code == 200
-    assert user_client.get(f"/api/annexes/{annex['id']}/file").status_code == 200
-    assert upload(user_client, make_pdf()).status_code == 403
-    assert user_client.patch(f"/api/annexes/{annex['id']}", json={"title": "x"}).status_code == 403
-    assert user_client.delete(f"/api/annexes/{annex['id']}").status_code == 403
-    assert db.scalar(select(Annex.title)) == "Notice"
-    assert actions(db) == ["annex_uploaded"]
+    assert user_client.get("/api/annexes/tree").status_code == 200
+    assert user_client.get(f"/api/annexes/{note['id']}").status_code == 200
+    n, f = f"/api/annexes/{note['id']}", f"/api/annex-folders/{folder['id']}"
+    assert user_client.post("/api/annexes", json={"title": "x"}).status_code == 403
+    assert user_client.patch(n, json={"title": "x"}).status_code == 403
+    assert user_client.delete(n).status_code == 403
+    assert user_client.post("/api/annex-folders", json={"name": "x"}).status_code == 403
+    assert user_client.patch(f, json={"name": "x"}).status_code == 403
+    assert user_client.delete(f).status_code == 403
+    assert (db.scalar(select(Annex.title)), db.scalar(select(AnnexFolder.name))) == (
+        "Notice",
+        "Protocoles",
+    )
+    assert actions(db) == ["annex_folder_created", "annex_created"]
+
+
+def test_user_with_an_active_profile_reads_too(make_client, admin_client, profile_factory):
+    make_note(admin_client)
+    client = make_client("user", profile_factory())
+    assert len(client.get("/api/annexes").json()) == 1
+    assert len(client.get("/api/annexes/tree").json()["notes"]) == 1
 
 
 def test_anonymous_gets_401_everywhere(client, admin_client):
-    annex = make_annex(admin_client)
-    target = f"/api/annexes/{annex['id']}"
+    folder, note = make_folder(admin_client), make_note(admin_client)
+    n, f = f"/api/annexes/{note['id']}", f"/api/annex-folders/{folder['id']}"
     assert client.get("/api/annexes").status_code == 401
-    assert client.get(target).status_code == 401
-    assert client.get(f"{target}/file").status_code == 401
-    assert upload(client, make_pdf()).status_code == 401
-    assert client.patch(target, json={"title": "x"}).status_code == 401
-    assert client.delete(target).status_code == 401
+    assert client.get("/api/annexes/tree").status_code == 401
+    assert client.get(n).status_code == 401
+    assert client.post("/api/annexes", json={"title": "x"}).status_code == 401
+    assert client.patch(n, json={"title": "x"}).status_code == 401
+    assert client.delete(n).status_code == 401
+    assert client.post("/api/annex-folders", json={"name": "x"}).status_code == 401
+    assert client.patch(f, json={"name": "x"}).status_code == 401
+    assert client.delete(f).status_code == 401
 
 
 def test_admin_writes_need_the_csrf_token(admin_client):
-    annex = make_annex(admin_client)
+    folder, note = make_folder(admin_client), make_note(admin_client)
     del admin_client.headers["X-CSRF-Token"]
-    assert upload(admin_client, make_pdf()).status_code == 403
-    assert admin_client.patch(f"/api/annexes/{annex['id']}", json={"title": "x"}).status_code == 403
-    assert admin_client.delete(f"/api/annexes/{annex['id']}").status_code == 403
+    n, f = f"/api/annexes/{note['id']}", f"/api/annex-folders/{folder['id']}"
+    assert admin_client.post("/api/annexes", json={"title": "x"}).status_code == 403
+    assert admin_client.patch(n, json={"title": "x"}).status_code == 403
+    assert admin_client.delete(n).status_code == 403
+    assert admin_client.post("/api/annex-folders", json={"name": "x"}).status_code == 403
+    assert admin_client.patch(f, json={"name": "x"}).status_code == 403
+    assert admin_client.delete(f).status_code == 403
+
+
+# --- helpers kept for the PDF export ----------------------------------------------------------
+
+
+def test_content_disposition_is_safe_for_non_ascii_and_quotes():
+    assert annexes.content_disposition('Fiche "été".pdf') == (
+        "inline; filename=\"Fiche __t__.pdf\"; filename*=UTF-8''Fiche%20%22%C3%A9t%C3%A9%22.pdf"
+    )

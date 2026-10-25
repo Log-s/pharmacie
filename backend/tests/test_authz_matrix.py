@@ -21,7 +21,16 @@ from app.services.activity import RequestCtx
 from tests.conftest import PASSWORDS
 
 NEW_USER_PW = "girafe-tunnel-paprika-93"
-ADMIN_ONLY = [("POST", "/api/admin/user-password", {"password": NEW_USER_PW})]
+ANY_ID = "00000000-0000-4000-8000-000000000001"
+ADMIN_ONLY = [
+    ("POST", "/api/admin/user-password", {"password": NEW_USER_PW}),
+    ("POST", "/api/annexes", {"title": "Note", "body_html": "<p>x</p>"}),
+    ("PATCH", f"/api/annexes/{ANY_ID}", {"title": "Note"}),
+    ("DELETE", f"/api/annexes/{ANY_ID}", None),
+    ("POST", "/api/annex-folders", {"name": "Dossier"}),
+    ("PATCH", f"/api/annex-folders/{ANY_ID}", {"name": "Dossier"}),
+    ("DELETE", f"/api/annex-folders/{ANY_ID}", None),
+]
 PUBLIC_WRITES = {("POST", "/api/auth/login")}
 WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 

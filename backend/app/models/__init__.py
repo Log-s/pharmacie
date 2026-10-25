@@ -120,17 +120,39 @@ class Form(Base):
     )
 
 
+class AnnexFolder(Base):
+    """Annex folder tree; deleting a folder cascades (in the database) to its subtree and notes."""
+
+    __tablename__ = "annex_folders"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    name: Mapped[str] = mapped_column(String(200))
+    parent_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("annex_folders.id", ondelete="CASCADE")
+    )  # null = root
+    created_at: Mapped[datetime] = created_at()
+
+
 class Annex(Base):
+    """A note: sanitised HTML (`body_html`) and its plain text (`body_text`: search, excerpt)."""
+
     __tablename__ = "annexes"
 
     id: Mapped[uuid.UUID] = uuid_pk()
     title: Mapped[str] = mapped_column(String(200))
-    filename: Mapped[str] = mapped_column(String(255))
-    storage_path: Mapped[str] = mapped_column(String(500))
-    size: Mapped[int] = mapped_column(BigInteger)
-    sha256: Mapped[str] = mapped_column(String(64))
-    excerpt: Mapped[str] = mapped_column(Text, server_default="")
+    folder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("annex_folders.id", ondelete="CASCADE"), index=True
+    )  # null = root
+    body_html: Mapped[str] = mapped_column(Text)
+    body_text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    @property
+    def excerpt(self) -> str:
+        return self.body_text[:300]
 
 
 class ReferenceCounter(Base):

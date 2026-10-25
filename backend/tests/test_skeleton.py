@@ -19,6 +19,7 @@ SPEC_TABLES = {
     "template_versions",
     "forms",
     "annexes",
+    "annex_folders",
     "reference_counters",
     "activity_log",
     "sessions",
