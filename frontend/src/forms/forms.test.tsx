@@ -26,7 +26,7 @@ const tree = {
 }
 const owner = { id: 'A', display_name: 'Alice Martin', initials: 'AM', color: '#3a7', archived: false }
 const summary = (over: object = {}) => ({
-  id: 'f1', reference: 'FIXME-000001', template_id: 't1', template_name: 'Contrôle', template_version_id: 'v1', version: 1,
+  id: 'f1', reference: '10-2026-001', template_id: 't1', template_name: 'Contrôle', template_version_id: 'v1', version: 1,
   owner, created_at: '2026-10-20T10:00:00Z', updated_at: '2026-10-21T10:00:00Z', can_edit: true, ...over,
 })
 const detail = (over: object = {}) => ({ ...summary(over), data: { [TEXT_NODE]: 'RAS' }, schema_json: tree })
@@ -92,7 +92,7 @@ describe('Fiche view: ownership-aware actions', () => {
     })
     fireEvent.click(await screen.findByRole('button', { name: 'Supprimer' }))
     const dialog = await screen.findByRole('alertdialog')
-    expect(within(dialog).getByText(/Supprimer la fiche FIXME-000001/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Supprimer la fiche 10-2026-001/)).toBeInTheDocument()
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }))
     await waitFor(() => expect(fetchMock.mock.calls.some(([url, init]) => url === '/api/forms/f1' && init?.method === 'DELETE')).toBe(true))
@@ -111,7 +111,7 @@ describe('Fiche view: ownership-aware actions', () => {
       if (url === '/api/forms/f1') return Response.json(detail({ can_edit: false }))
     })
     fireEvent.click(await screen.findByRole('button', { name: 'Exporter en PDF' }))
-    await waitFor(() => expect(saved).toEqual(['FIXME-000001.pdf']))
+    await waitFor(() => expect(saved).toEqual(['10-2026-001.pdf']))
     expect(urls(fetchMock)).toContain('/api/forms/f1/pdf')
   })
 })
@@ -125,32 +125,32 @@ describe('Fiches list', () => {
 
   test('lists fiches with the owner badge; the user has « Nouvelle fiche », the admin does not', async () => {
     list('/fiches')
-    expect(await screen.findByRole('link', { name: 'FIXME-000001' })).toHaveAttribute('href', '/fiches/f1')
+    expect(await screen.findByRole('link', { name: '10-2026-001' })).toHaveAttribute('href', '/fiches/f1')
     expect(within(screen.getByRole('table')).getByText('Alice Martin')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Nouvelle fiche' })).toHaveAttribute('href', '/fiches/nouvelle')
   })
 
   test('the admin cannot create', async () => {
     list('/fiches', admin)
-    await screen.findByRole('link', { name: 'FIXME-000001' })
+    await screen.findByRole('link', { name: '10-2026-001' })
     expect(screen.queryByRole('link', { name: 'Nouvelle fiche' })).toBeNull()
   })
 
   test('search is debounced and sent to the server as q; reference too', async () => {
     const fetchMock = list('/fiches')
-    await screen.findByRole('link', { name: 'FIXME-000001' })
+    await screen.findByRole('link', { name: '10-2026-001' })
     fireEvent.change(screen.getByLabelText('Rechercher'), { target: { value: 'amox' } })
     fireEvent.change(screen.getByLabelText('Rechercher'), { target: { value: 'amoxi' } })
     expect(formsCalls(fetchMock).some((p) => p.has('q'))).toBe(false) // nothing before the pause
     await waitFor(() => expect(formsCalls(fetchMock).some((p) => p.get('q') === 'amoxi')).toBe(true))
     expect(formsCalls(fetchMock).some((p) => p.get('q') === 'amox')).toBe(false) // one call for the last text
-    fireEvent.change(screen.getByLabelText('Référence'), { target: { value: 'FIXME-0000' } })
-    await waitFor(() => expect(formsCalls(fetchMock).some((p) => p.get('reference') === 'FIXME-0000' && p.get('q') === 'amoxi')).toBe(true))
+    fireEvent.change(screen.getByLabelText('Référence'), { target: { value: '10-2026-0' } })
+    await waitFor(() => expect(formsCalls(fetchMock).some((p) => p.get('reference') === '10-2026-0' && p.get('q') === 'amoxi')).toBe(true))
   })
 
   test('filters in the URL (dates, author, owner, template) become query params', async () => {
     const fetchMock = list('/fiches?date_from=2026-10-01&date_to=2026-10-31&author_id=A&owner_profile_id=B&template_id=t1&page=2')
-    await screen.findByRole('link', { name: 'FIXME-000001' })
+    await screen.findByRole('link', { name: '10-2026-001' })
     const params = formsCalls(fetchMock).at(-1)!
     expect(Object.fromEntries(params)).toEqual({
       page: '2', page_size: '25', date_from: '2026-10-01', date_to: '2026-10-31', author_id: 'A', owner_profile_id: 'B', template_id: 't1',
@@ -160,7 +160,7 @@ describe('Fiches list', () => {
 
   test('text the server would refuse (NUL) is flagged and never sent', async () => {
     const fetchMock = list('/fiches')
-    await screen.findByRole('link', { name: 'FIXME-000001' })
+    await screen.findByRole('link', { name: '10-2026-001' })
     fireEvent.change(screen.getByLabelText('Rechercher'), { target: { value: 'a\u0000b' } })
     expect(await screen.findByText(/caractère nul ou invalide/)).toBeInTheDocument()
     await new Promise((r) => setTimeout(r, 400))
@@ -188,7 +188,7 @@ describe('Fiche editor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(true))
     const [, init] = fetchMock.mock.calls.find(([, i]) => i?.method === 'PUT')!
-    expect(JSON.parse(String(init!.body))).toEqual({ reference: 'FIXME-000001', data: { [TEXT_NODE]: 'Conforme' } })
+    expect(JSON.parse(String(init!.body))).toEqual({ reference: '10-2026-001', data: { [TEXT_NODE]: 'Conforme' } })
     expect((init!.headers as Record<string, string>)['X-CSRF-Token']).toBe('csrf-user')
   })
 
@@ -230,7 +230,7 @@ describe('Fiche editor', () => {
 
   test('a 409 on the reference is shown on the reference field', async () => {
     edit(() => Response.json({ detail: 'Cette référence est déjà utilisée par une autre fiche.' }, { status: 409 }))
-    fireEvent.change(await screen.findByLabelText(/^Référence/), { target: { value: 'FIXME-000002' } })
+    fireEvent.change(await screen.findByLabelText(/^Référence/), { target: { value: '10-2026-002' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
     const message = await screen.findByText('Cette référence est déjà utilisée par une autre fiche.')
     expect(screen.getByLabelText(/^Référence/)).toHaveAttribute('aria-invalid', 'true')
@@ -259,29 +259,29 @@ describe('New fiche', () => {
   const create = (path = '/fiches/nouvelle') =>
     renderAt(path, user('A'), (url, init) => {
       if (url === '/api/templates/available') return Response.json(available)
-      if (url === '/api/forms/next-reference') return Response.json({ reference: 'FIXME-000007' })
-      if (url === '/api/forms' && init?.method === 'POST') return Response.json(detail({ id: 'f9', reference: 'FIXME-000007' }), { status: 201 })
-      if (url === '/api/forms/f9') return Response.json(detail({ id: 'f9', reference: 'FIXME-000007' }))
+      if (url === '/api/forms/next-reference') return Response.json({ reference: '10-2026-007' })
+      if (url === '/api/forms' && init?.method === 'POST') return Response.json(detail({ id: 'f9', reference: '10-2026-007' }), { status: 201 })
+      if (url === '/api/forms/f9') return Response.json(detail({ id: 'f9', reference: '10-2026-007' }))
     })
 
   test('picks a template, prefills the reference and creates the fiche with the version id', async () => {
     const fetchMock = create()
     fireEvent.click(await screen.findByRole('link', { name: /Contrôle/ }))
     const reference = await screen.findByLabelText(/^Référence/)
-    await waitFor(() => expect(reference).toHaveValue('FIXME-000007'))
+    await waitFor(() => expect(reference).toHaveValue('10-2026-007'))
     fireEvent.change(screen.getByLabelText('Observation'), { target: { value: 'Premier contrôle' } })
     fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
     await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(true))
     const [, init] = fetchMock.mock.calls.find(([, i]) => i?.method === 'POST')!
     // The untouched proposal goes back as null: the server numbers it.
     expect(JSON.parse(String(init!.body))).toEqual({ template_version_id: 'v1', reference: null, data: { [TEXT_NODE]: 'Premier contrôle' } })
-    expect(await screen.findByRole('heading', { name: 'FIXME-000007' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: '10-2026-007' })).toBeInTheDocument()
   })
 
   test('a fresh form is not dirty, typing makes it dirty', async () => {
     create('/fiches/nouvelle?template=t1')
     const field = await screen.findByLabelText('Observation')
-    await waitFor(() => expect(screen.getByLabelText(/^Référence/)).toHaveValue('FIXME-000007'))
+    await waitFor(() => expect(screen.getByLabelText(/^Référence/)).toHaveValue('10-2026-007'))
     expect(screen.queryByText('Modifications non enregistrées')).toBeNull()
     fireEvent.change(field, { target: { value: 'x' } })
     expect(await screen.findByText('Modifications non enregistrées')).toBeInTheDocument()

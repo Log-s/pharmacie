@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { type Browser, type BrowserContext, expect, type Page, test } from '@playwright/test'
+import { REFERENCE_RE } from '../src/config/reference.ts'
 import { tinyPdf } from './pdf.ts'
 
 // Specification §11 « E2E Playwright », one serial scenario on a fresh production stack (scripts/e2e.sh
@@ -142,7 +143,7 @@ test('utilisateur : connexion et choix du profil', async () => {
 test('utilisateur : remplit une fiche, l’infobulle de l’annexe s’ouvre dans un nouvel onglet', async () => {
   await user.getByRole('link', { name: 'Nouvelle fiche' }).click()
   await user.getByRole('link', { name: new RegExp(TEMPLATE) }).click()
-  await expect(user.getByLabel('Référence')).toHaveValue(/^FIXME-\d{6}$/)
+  await expect(user.getByLabel('Référence')).toHaveValue(REFERENCE_RE)
 
   await user.getByRole('checkbox', { name: 'Conforme' }).check()
   await expect(user.getByLabel(/Détail de l'écart/)).toHaveCount(0)
@@ -176,10 +177,10 @@ test('utilisateur : remplit une fiche, l’infobulle de l’annexe s’ouvre dan
   await expect(user.getByRole('tooltip')).toContainText(ANNEX.excerpt)
 
   await user.getByRole('button', { name: 'Enregistrer' }).click()
-  await toast(user, /Fiche FIXME-\d{6} créée\./)
+  await toast(user, /Fiche .+ créée\./)
   await expect(user).toHaveURL(/\/fiches\/[0-9a-f-]{36}$/)
   reference = (await user.getByRole('heading', { level: 1 }).innerText()).trim()
-  expect(reference).toMatch(/^FIXME-\d{6}$/)
+  expect(reference).toMatch(REFERENCE_RE)
   ficheUrl = new URL(user.url()).pathname
   await expect(user.getByText(DETAIL)).toBeVisible()
 })

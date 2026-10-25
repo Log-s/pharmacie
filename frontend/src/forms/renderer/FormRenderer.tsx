@@ -18,7 +18,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldLegen
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
-import { isValidReference, REFERENCE_EXAMPLE } from '@/config/reference'
+import { isValidReference, REFERENCE_EXAMPLE, REFERENCE_HINT } from '@/config/reference'
 import { api } from '@/lib/api'
 import { isGroup, walk, type GroupNode, type TemplateNode, type TemplateTree } from '@/templates/schema'
 import { AuthorSelect, DatePicker, LabelText, NodeLabel, OptionChildren } from './fields'
@@ -111,7 +111,7 @@ function EditForm({ tree, defaultValue, onSubmit, onChange, errors, id, headingL
       const message =
         reference === ''
           ? isNew ? undefined : 'La référence est obligatoire.'
-          : isValidReference(reference) ? undefined : `Format attendu\u00a0: ${REFERENCE_EXAMPLE} (le préfixe, un tiret puis 6 chiffres).`
+          : isValidReference(reference) ? undefined : `Format attendu\u00a0: ${REFERENCE_HINT} (par exemple ${REFERENCE_EXAMPLE}).`
       if (message) found.reference = { type: 'validate', message }
     }
     return Object.keys(found).length ? { values: {}, errors: found } : { values, errors: {} }
@@ -322,7 +322,7 @@ function ValueField({ node }: { node: TemplateNode }) {
   const errorId = `${id}-erreur`
   const counterId = `${id}-compteur`
   const prefill = !isNew ? undefined : node.type === 'date' ? today : node.type === 'author' ? activeProfileId : undefined
-  const help = node.type === 'reference' && !node.help ? `Proposée automatiquement, modifiable. Format\u00a0: ${REFERENCE_EXAMPLE}.` : node.help
+  const help = node.type === 'reference' && !node.help ? `Proposée automatiquement, modifiable. Format\u00a0: ${REFERENCE_HINT}.` : node.help
 
   return (
     <Controller
@@ -350,7 +350,7 @@ function ValueField({ node }: { node: TemplateNode }) {
               maxLength={maxLength ?? undefined}
               autoComplete="off"
               spellCheck={node.type === 'reference' ? false : undefined}
-              placeholder={node.type === 'reference' ? (isNew ? 'Numérotée automatiquement' : REFERENCE_EXAMPLE) : undefined}
+              placeholder={node.type === 'reference' ? (isNew ? 'Numérotée automatiquement' : REFERENCE_HINT) : undefined}
               className={node.type === 'reference' ? 'tabular-nums sm:w-64' : undefined}
               aria-invalid={invalid || undefined}
               aria-describedby={describedBy}
