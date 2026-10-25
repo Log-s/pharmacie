@@ -114,3 +114,55 @@
     text-wrap: balance;
   }
 }
+
+/* Note body (annexes): reading view and Tiptap editing area. Tokens only, no typography plugin. */
+@layer components {
+  .note-content {
+    @apply text-sm leading-relaxed wrap-break-word;
+  }
+  .note-content > * + * {
+    @apply mt-3;
+  }
+  .note-content h1 {
+    @apply mt-5 text-xl font-semibold tracking-tight;
+  }
+  .note-content h2 {
+    @apply mt-5 text-lg font-semibold tracking-tight;
+  }
+  .note-content h3 {
+    @apply mt-4 text-base font-semibold;
+  }
+  .note-content > :first-child {
+    @apply mt-0;
+  }
+  .note-content ul {
+    @apply list-disc pl-5;
+  }
+  .note-content ol {
+    @apply list-decimal pl-5;
+  }
+  .note-content li + li {
+    @apply mt-1;
+  }
+  .note-content li > p {
+    @apply m-0;
+  }
+  .note-content blockquote {
+    @apply border-l-2 border-input pl-4 text-muted-foreground;
+  }
+  .note-content a {
+    @apply text-primary underline underline-offset-2;
+  }
+  .note-content code {
+    @apply rounded-md bg-muted px-1 py-0.5 font-mono text-[0.9em];
+  }
+  .note-content pre {
+    @apply overflow-x-auto rounded-lg bg-muted p-3;
+  }
+  .note-content pre code {
+    @apply bg-transparent p-0;
+  }
+  .note-content hr {
+    @apply my-5 border-border;
+  }
+}

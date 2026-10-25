@@ -3,6 +3,8 @@ import App from '@/App'
 import JournalPage from '@/admin/JournalPage'
 import UserAccountPage from '@/admin/UserAccountPage'
 import AnnexesPage from '@/annexes/AnnexesPage'
+import NoteEditorPage from '@/annexes/NoteEditorPage'
+import NotePage from '@/annexes/NotePage'
 import { RequireAuth, RequireProfile, RequireRole } from '@/auth/guards'
 import LoginPage from '@/auth/LoginPage'
 import { StatusPage } from '@/components/StatusPage'
@@ -37,6 +39,7 @@ export const routes: RouteObject[] = [
               { path: 'fiches/:formId', element: <FormViewPage /> },
               { path: 'fiches/:formId/modifier', element: <FormEditPage /> },
               { path: 'annexes', element: <AnnexesPage /> },
+              { path: 'annexes/notes/:id', element: <NotePage /> },
             ],
           },
           // Admin only.
@@ -47,6 +50,8 @@ export const routes: RouteObject[] = [
               { path: 'templates', element: <TemplatesPage /> },
               { path: 'templates/nouveau', element: <TemplateEditorPage /> },
               { path: 'templates/:templateId', element: <TemplateEditorPage /> },
+              { path: 'annexes/notes/nouvelle', element: <NoteEditorPage /> },
+              { path: 'annexes/notes/:id/modifier', element: <NoteEditorPage /> },
               { path: 'journal', element: <JournalPage /> },
               { path: 'compte-utilisateur', element: <UserAccountPage /> },
             ],

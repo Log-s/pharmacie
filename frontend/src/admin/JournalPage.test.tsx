@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 import JournalPage from '@/admin/JournalPage'
 import { queryClient } from '@/lib/api'
 
-const entry = (id: number) => ({ id, at: '2026-03-04T09:30:00Z', account_role: 'user', profile_id: 'p1', profile_name: 'Claire Martin', action: 'profile_switch', target_type: 'profile', target_id: 'p1', details: { from: null, to: 'p1' } })
+const entry = (id: number, action = 'profile_switch') => ({ id, at: '2026-03-04T09:30:00Z', account_role: 'user', profile_id: 'p1', profile_name: 'Claire Martin', action, target_type: 'profile', target_id: 'p1', details: { from: null, to: 'p1' } })
 
 afterEach(() => {
   queryClient.clear()
@@ -39,5 +39,27 @@ describe('Journal page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Suivante' }))
     await waitFor(() => expect(screen.getByText('120 entrées · page 2 sur 3')).toBeInTheDocument())
     expect(urls.some((u) => u === '/api/journal?page=2&page_size=50')).toBe(true)
+  })
+
+  test('labels the note and folder actions', async () => {
+    const actions = ['annex_created', 'annex_folder_created', 'annex_folder_deleted']
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        if (url === '/api/journal/actions') return Response.json(actions)
+        if (url === '/api/profiles?include_archived=true') return Response.json([])
+        return Response.json({ items: actions.map((a, i) => entry(i + 1, a)), total: 3, page: 1, page_size: 50 })
+      }),
+    )
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <JournalPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByRole('cell', { name: 'Annexe créée' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: "Dossier d'annexes créé" })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: "Dossier d'annexes supprimé" })).toBeInTheDocument()
   })
 })

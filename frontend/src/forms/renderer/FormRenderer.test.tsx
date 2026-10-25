@@ -93,7 +93,7 @@ describe('FormRenderer (edit)', () => {
     const checks = screen.getByRole('group', { name: /Vérifications/ })
     expect(within(checks).getAllByRole('checkbox')).toHaveLength(2)
     expect(within(checks).getByText('Cochez ce qui a été vérifié.')).toBeInTheDocument()
-    const annex = within(checks).getByRole('link', { name: 'Annexe : Vérifications' })
+    const annex = within(checks).getByRole('link', { name: 'Annexe\u00a0: Vérifications' })
     expect(annex).toHaveAttribute('href', `/annexes/notes/${ANNEX}`)
     expect(screen.getAllByRole('radio')).toHaveLength(2)
     expect(screen.getByText('Résultat').parentElement).toHaveTextContent('Résultat* (obligatoire)')
@@ -231,7 +231,7 @@ describe('FormRenderer (readonly)', () => {
     expect(screen.getByText('Écart constaté')).toBeInTheDocument()
     expect(screen.getByText('Étiquette illisible')).toBeInTheDocument()
     expect(screen.queryByText('caché')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Annexe : Vérifications' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Annexe\u00a0: Vérifications' })).toBeInTheDocument()
     expect(screen.getAllByText('Non renseigné')).toHaveLength(1) // Commentaire
   })
 })

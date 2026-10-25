@@ -7,7 +7,7 @@ import { useNote } from '@/annexes/api'
 export type AnnexInfoProps = {
   /** `annex_ref.annex_id` of the template node. */
   annexId: string
-  /** Visible label of the field, used for the accessible name (« Annexe : <label> »). */
+  /** Visible label of the field, used for the accessible name (« Annexe : <label> » with a no-break space). */
   label?: string
 }
 
@@ -21,7 +21,7 @@ const iconClass =
 export function AnnexInfo({ annexId, label }: AnnexInfoProps) {
   const annex = useNote(annexId)
   const cardId = useId()
-  const name = label ? `Annexe : ${label}` : 'Annexe'
+  const name = label ? `Annexe\u00a0: ${label}` : 'Annexe'
 
   if (annex.error instanceof ApiError && annex.error.status === 404) {
     return <span className="ml-1 align-middle text-xs text-muted-foreground italic">Annexe supprimée</span>
