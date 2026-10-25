@@ -62,7 +62,7 @@ export default function AnnexesPage() {
         </Alert>
       )}
       {tree.data && index && (
-        <div className="grid gap-4 md:grid-cols-[16rem_minmax(0,1fr)] md:gap-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[16rem_minmax(0,1fr)] md:gap-6">
           <nav aria-label="Arborescence des annexes" className="self-start rounded-xl border bg-card p-2">
             <TreeNav index={index} currentId={current?.id ?? null} />
           </nav>
