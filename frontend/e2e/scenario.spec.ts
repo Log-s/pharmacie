@@ -105,16 +105,19 @@ test('admin : crée un dossier, un sous-dossier et une note en gras et souligné
   await expect(admin.getByRole('heading', { name: 'Nouvelle note' })).toBeVisible()
   await admin.getByLabel('Titre', { exact: true }).fill(ANNEX.title)
   const editor = admin.getByRole('textbox', { name: 'Contenu de la note' })
-  const format = (name: 'Gras' | 'Souligné') => admin.getByRole('button', { name }).click()
+  // Type first, then select a word and click the toolbar: applying a mark to a selection does not race the editor's focus handling.
+  const format = async (name: 'Gras' | 'Souligné', skip: number, length: number) => {
+    await admin.keyboard.press('Home')
+    for (let i = 0; i < skip; i++) await admin.keyboard.press('ArrowRight')
+    for (let i = 0; i < length; i++) await admin.keyboard.press('Shift+ArrowRight')
+    const button = admin.getByRole('button', { name })
+    await button.click()
+    await expect(button).toHaveAttribute('aria-pressed', 'true')
+  }
   await editor.click()
-  await format('Gras')
-  await admin.keyboard.type('Diluer')
-  await format('Gras')
-  await admin.keyboard.type(' a ')
-  await format('Souligné')
-  await admin.keyboard.type('5 pour cent')
-  await format('Souligné')
-  await admin.keyboard.type(' avant usage')
+  await admin.keyboard.type(ANNEX.excerpt)
+  await format('Gras', 0, 'Diluer'.length)
+  await format('Souligné', 'Diluer a '.length, '5 pour cent'.length)
   await admin.getByRole('button', { name: 'Enregistrer' }).click()
   await toast(admin, 'Note créée.')
 
