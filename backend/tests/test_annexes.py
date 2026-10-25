@@ -181,6 +181,36 @@ def test_mailto_is_kept_and_other_schemes_are_dropped(admin_client):
     assert "ftp:" not in html and "data:" not in html
 
 
+def stored_both_ways(admin_client, db, body):
+    """Sanitised HTML of `body` as returned and as stored, after a POST then a PATCH."""
+    posted = make_note(admin_client, body_html="<p>x</p>")
+    patched = admin_client.patch(f"/api/annexes/{posted['id']}", json={"body_html": body}).json()
+    created = make_note(admin_client, title="Autre", body_html=body)
+    rows = [(n, db.get(Annex, uuid.UUID(n["id"]))) for n in (created, patched)]
+    return [h for n, row in rows for h in (n["body_html"], row.body_html)]
+
+
+def test_generic_attributes_are_stripped_from_every_tag(admin_client, db):
+    cases = {
+        '<h1 title="x" lang="fr">T</h1>': "<h1>T</h1>",
+        '<p title lang id="i" class="c" style="color:red" data-x="1">T</p>': "<p>T</p>",
+        '<a href="https://ok" title="t" lang="fr">l</a>': (
+            '<a href="https://ok" rel="noopener noreferrer">l</a>'
+        ),
+    }
+    for body, expected in cases.items():
+        assert set(stored_both_ways(admin_client, db, body)) == {expected}
+
+
+def test_relative_scheme_relative_and_fragment_hrefs_are_removed(admin_client, db):
+    for href in ("/x", "//evil.example/x", "#frag"):
+        for html in stored_both_ways(admin_client, db, f'<a href="{href}">l</a>'):
+            assert "href" not in html and "evil" not in html and "frag" not in html
+    for href in ("https://ok", "http://ok", "mailto:a@b.fr"):
+        for html in stored_both_ways(admin_client, db, f'<a href="{href}">l</a>'):
+            assert f'href="{href}"' in html
+
+
 def test_underline_and_the_editor_tags_are_kept(admin_client, db):
     body = (
         "<h1>a</h1><h2>b</h2><h3>c</h3><p><strong>g</strong><em>i</em><u>u</u><s>s</s><br>"

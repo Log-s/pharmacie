@@ -24,8 +24,9 @@ def sanitize(raw: str) -> tuple[str, str]:
     clean = nh3.clean(
         raw,
         tags=TAGS,
-        attributes={"a": {"href"}},
+        attributes={"*": set(), "a": {"href"}},  # "*" drops nh3's default title/lang
         url_schemes={"http", "https", "mailto"},
+        url_relative="deny",
         link_rel="noopener noreferrer",
         clean_content_tags={"script", "style"},
     )
