@@ -6,7 +6,7 @@ import type { TemplateTree } from '@/templates/schema'
 export type TemplateSummary = { id: string; name: string; archived_at: string | null; latest_version: number | null }
 export type TemplateVersion = { id: string; template_id: string; version: number; published_at: string; schema_json: TemplateTree }
 export type TemplateDetail = TemplateSummary & { versions: TemplateVersion[] }
-export type Annex = { id: string; title: string; filename: string; size: number; excerpt: string; created_at: string }
+export type Annex = { id: string; title: string; folder_id: string | null; excerpt: string; updated_at: string }
 
 export const templatesKey = ['templates'] as const
 

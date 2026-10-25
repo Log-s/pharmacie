@@ -2,7 +2,7 @@ import { InfoIcon } from 'lucide-react'
 import { useId } from 'react'
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { ApiError } from '@/lib/api'
-import { annexFileUrl, useAnnex } from '@/annexes/api'
+import { useNote } from '@/annexes/api'
 
 export type AnnexInfoProps = {
   /** `annex_ref.annex_id` of the template node. */
@@ -16,10 +16,10 @@ const iconClass =
 
 /**
  * "i" icon after a field label: hover or keyboard focus shows the annex excerpt, click opens the
- * PDF in a new tab. A deleted annex (404) shows « Annexe supprimée » and no link.
+ * note in a new tab. A deleted annex (404) shows « Annexe supprimée » and no link.
  */
 export function AnnexInfo({ annexId, label }: AnnexInfoProps) {
-  const annex = useAnnex(annexId)
+  const annex = useNote(annexId)
   const cardId = useId()
   const name = label ? `Annexe : ${label}` : 'Annexe'
 
@@ -27,7 +27,7 @@ export function AnnexInfo({ annexId, label }: AnnexInfoProps) {
     return <span className="ml-1 align-middle text-xs text-muted-foreground italic">Annexe supprimée</span>
   }
   const link = (
-    <a href={annexFileUrl(annexId)} target="_blank" rel="noopener" aria-label={name} aria-describedby={annex.data ? cardId : undefined} className={iconClass}>
+    <a href={`/annexes/notes/${annexId}`} target="_blank" rel="noopener" aria-label={name} aria-describedby={annex.data ? cardId : undefined} className={iconClass}>
       <InfoIcon aria-hidden="true" />
     </a>
   )
@@ -36,10 +36,10 @@ export function AnnexInfo({ annexId, label }: AnnexInfoProps) {
       <HoverCardTrigger asChild>{link}</HoverCardTrigger>
       {annex.data && (
         <HoverCardContent id={cardId} role="tooltip" align="start" className="w-80">
-          <a href={annexFileUrl(annexId)} target="_blank" rel="noopener" tabIndex={-1} className="flex flex-col gap-1 rounded-md outline-none">
+          <a href={`/annexes/notes/${annexId}`} target="_blank" rel="noopener" tabIndex={-1} className="flex flex-col gap-1 rounded-md outline-none">
             <span className="font-medium">{annex.data.title}</span>
             <span className="line-clamp-6 text-muted-foreground">{annex.data.excerpt || 'Aucun extrait disponible pour ce document.'}</span>
-            <span className="text-xs text-primary underline underline-offset-2">Ouvrir le PDF dans un nouvel onglet</span>
+            <span className="text-xs text-primary underline underline-offset-2">Ouvrir l'annexe</span>
           </a>
         </HoverCardContent>
       )}

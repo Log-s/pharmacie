@@ -9,6 +9,7 @@ from sqlalchemy.orm import defer
 
 from app.api.deps import CurrentAuth, Db, get_request_ctx, require_admin
 from app.models import Annex, AnnexFolder
+from app.pdf import annexes as pdf
 from app.schemas.annexes import (
     FolderIn,
     FolderOut,
@@ -94,7 +95,19 @@ def list_annexes(
     return [NoteSummary.model_validate(a) for a in db.scalars(query)]
 
 
-# GET /annexes/export.pdf (unit U2) goes here, before the {annex_id} route.
+@router.get("/annexes/export.pdf")
+def export_pdf(_auth: CurrentAuth, db: Db, folder_id: uuid.UUID | None = None) -> Response:
+    """Both roles. The folder's subtree, or the whole tree without `folder_id`."""
+    folder = _folder(db, folder_id) if folder_id else None
+    return Response(
+        pdf.render(db, folder),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": annexes.content_disposition(
+                f"{folder.name if folder else 'Annexes'}.pdf"
+            )
+        },
+    )
 
 
 @router.get("/annexes/{annex_id}")

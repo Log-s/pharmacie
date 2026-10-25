@@ -94,7 +94,7 @@ describe('FormRenderer (edit)', () => {
     expect(within(checks).getAllByRole('checkbox')).toHaveLength(2)
     expect(within(checks).getByText('Cochez ce qui a été vérifié.')).toBeInTheDocument()
     const annex = within(checks).getByRole('link', { name: 'Annexe : Vérifications' })
-    expect(annex).toHaveAttribute('href', `/api/annexes/${ANNEX}/file`)
+    expect(annex).toHaveAttribute('href', `/annexes/notes/${ANNEX}`)
     expect(screen.getAllByRole('radio')).toHaveLength(2)
     expect(screen.getByText('Résultat').parentElement).toHaveTextContent('Résultat* (obligatoire)')
   })
