@@ -64,7 +64,7 @@ export function Paraphe({ number, color, className }: { number: number | string;
   return (
     <span
       aria-hidden="true"
-      className={cn('flex size-7 shrink-0 items-center justify-center rounded-md border-2 text-xs font-semibold tabular-nums', className)}
+      className={cn('flex size-7 shrink-0 items-center justify-center rounded-md border-2 text-xs font-semibold tabular-nums', String(number).length > 2 && 'text-[11px] tracking-tight', className)}
       style={{ borderColor: color, backgroundColor: `color-mix(in oklch, ${color} 14%, transparent)` }}
     >
       {number}
