@@ -14,3 +14,4 @@ frontend/playwright-report/
 backups/
 test-results/
 playwright-report/
+compose.override.yaml

@@ -36,7 +36,7 @@ export default function App() {
       </a>
       <header className="border-b bg-background">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 px-4 md:px-6">
-          <Link to="/" className={`flex h-14 items-center rounded-md ${focusRing}`} aria-label="Fiches de la pharmacie, accueil">
+          <Link to="/" className={`flex h-14 items-center rounded-md ${focusRing}`} aria-label="Interventions pharmaceutiques, accueil">
             <Brand />
           </Link>
           {items.length > 0 && (

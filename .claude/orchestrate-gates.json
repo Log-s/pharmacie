@@ -2,7 +2,7 @@
   "$comment": "Gates are guarded so they pass on the empty baseline; once U1 lands, 'make check' (lint + typecheck + backend pytest in a throwaway Postgres container + frontend vitest) is enforced for every unit.",
   "install": "if [ -f frontend/package-lock.json ]; then npm ci --prefix frontend --no-audit --no-fund; fi",
   "cachePaths": ["frontend/dist", "**/__pycache__", "**/.pytest_cache", "frontend/node_modules/.vite", "**/*tsbuildinfo*"],
-  "sharedCache": { "note": "npm uses the shared ~/.npm cache; backend deps live in the Docker image layer cache." },
+  "sharedCache": { "note": "npm uses the shared ~/.npm cache; backend deps live in the podman image layer cache." },
   "gates": {
     "unit": [
       { "id": "check", "cmd": "if [ -f Makefile ]; then make check; else echo 'no Makefile yet (empty baseline)'; fi" }
@@ -12,7 +12,7 @@
     ],
     "ship": [
       { "id": "check", "cmd": "make check" },
-      { "id": "build", "cmd": "docker compose build" },
+      { "id": "build", "cmd": "podman-compose build" },
       { "id": "e2e", "cmd": "make e2e" }
     ]
   },

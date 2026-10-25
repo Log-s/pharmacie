@@ -1,9 +1,9 @@
-# Works with `docker compose` and `podman-compose`. Secrets: run `make secrets` first.
+# Run with podman-compose (`make up`). Secrets: run `make secrets` first.
 services:
   proxy:
     build:
       context: .
-      dockerfile: frontend/Dockerfile
+      dockerfile: frontend/Containerfile
     environment:
       SITE_HOST: ${SITE_HOST:-localhost}
     ports:
@@ -20,6 +20,7 @@ services:
   api:
     build:
       context: backend
+      dockerfile: Containerfile
       target: runtime
     environment:
       DB_HOST: db
@@ -39,7 +40,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:16-alpine
+    image: docker.io/library/postgres:16-alpine
     environment:
       POSTGRES_DB: pharmacie
       POSTGRES_USER: pharmacie

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Restores a backup made by scripts/backup.sh into the stack of the current COMPOSE project.
 # DESTRUCTIVE: replaces the database and the annexes volume. Usage:
-#   COMPOSE="docker compose" scripts/restore.sh [--yes] backups/db-<stamp>.dump backups/annexes-<stamp>.tar.gz
+#   COMPOSE=podman-compose scripts/restore.sh [--yes] backups/db-<stamp>.dump backups/annexes-<stamp>.tar.gz
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
-read -ra compose <<< "${COMPOSE:-docker compose}"
+read -ra compose <<< "${COMPOSE:-podman-compose}"
 yes=""
 [ "${1:-}" = "--yes" ] && { yes=1; shift; }
 [ $# -eq 2 ] || { echo "usage: $0 [--yes] DB_DUMP ANNEXES_TAR_GZ" >&2; exit 2; }

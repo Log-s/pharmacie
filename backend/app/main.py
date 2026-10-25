@@ -14,7 +14,7 @@ from app.settings import settings
 def create_app() -> FastAPI:
     docs = settings.expose_api_docs
     app = FastAPI(
-        title="Pharmacie - fiches",
+        title="Interventions pharmaceutiques",
         docs_url="/api/docs" if docs else None,
         redoc_url="/api/redoc" if docs else None,
         openapi_url="/api/openapi.json" if docs else None,

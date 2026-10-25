@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Backs up a running stack into ./backups/: a pg_dump custom-format file and a tar.gz of the
-# annexes volume, both stamped with the same UTC time. Usage: COMPOSE="docker compose" scripts/backup.sh
+# annexes volume, both stamped with the same UTC time. Usage: COMPOSE=podman-compose scripts/backup.sh
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
-read -ra compose <<< "${COMPOSE:-docker compose}"
+read -ra compose <<< "${COMPOSE:-podman-compose}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 out="$root/backups"
 umask 077 # the dump holds personal data (profile names, journal)

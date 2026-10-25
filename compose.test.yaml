@@ -2,7 +2,7 @@
 # its own project name (so networks/containers never collide) and tears it down on exit.
 services:
   db:
-    image: postgres:16-alpine
+    image: docker.io/library/postgres:16-alpine
     environment:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
@@ -20,6 +20,7 @@ services:
   tests:
     build:
       context: backend
+      dockerfile: Containerfile
       target: test
     image: pharmacie-api-test:${TEST_TAG:-local}
     volumes:

@@ -66,7 +66,7 @@ test('admin : connexion, un mauvais mot de passe est refusé', async () => {
   await login(admin, 'Administrateur', ADMIN_PASSWORD)
   await expect(admin).toHaveURL(/\/fiches$/)
   await expect(admin.getByText('Administrateur', { exact: true })).toBeVisible()
-  await expect(admin).toHaveTitle('Fiches – Fiches de la pharmacie')
+  await expect(admin).toHaveTitle('Fiches – Interventions pharmaceutiques')
 })
 
 test('admin : crée deux profils', async () => {
@@ -114,7 +114,8 @@ test('admin : crée un template avec sous-champ conditionnel et annexe, puis le 
   await admin.getByLabel("Libellé de l'option 2").fill('Écart constaté')
   await admin.getByRole('button', { name: 'Lier une annexe' }).click()
   await admin.getByRole('button', { name: new RegExp(ANNEX.title) }).click()
-  await expect(admin.getByText(ANNEX.title, { exact: true })).toBeVisible()
+  // Scoped to the properties panel: the picker popover may still be closing (same title inside).
+  await expect(admin.getByRole('group', { name: 'Annexe' }).getByText(ANNEX.title, { exact: true })).toBeVisible()
 
   // Conditional sub-field: only shown in the fiche when « Écart constaté » is ticked.
   await add(/^Ajouter un champ dans « Contrôles effectués » si « Écart constaté »$/, 'Texte')

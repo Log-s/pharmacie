@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Dependency and image audit. Runs every check even if one fails; exits 1 if any reports findings
 # (pip-audit/npm audit: any vulnerability; Trivy: HIGH or CRITICAL, lower ones are still printed).
-# Usage: ENGINE=docker scripts/audit.sh   (ENGINE=podman works too)
+# Usage: ENGINE=podman scripts/audit.sh
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
-engine="${ENGINE:-docker}"
+engine="${ENGINE:-podman}"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 fail=()
@@ -17,9 +17,9 @@ run() { # run NAME CMD...
 }
 
 api=pharmacie-audit-api proxy=pharmacie-audit-proxy
-$engine build -q -t "$api" --target runtime backend >/dev/null || exit 1
-$engine build -q -t "$proxy" -f frontend/Dockerfile . >/dev/null || exit 1
-$engine pull -q postgres:16-alpine >/dev/null || exit 1 # scanned from the registry, not built here
+$engine build -q -t "$api" -f backend/Containerfile --target runtime backend >/dev/null || exit 1
+$engine build -q -t "$proxy" -f frontend/Containerfile . >/dev/null || exit 1
+$engine pull -q docker.io/library/postgres:16-alpine >/dev/null || exit 1 # scanned from the registry, not built here
 
 # pip-audit lives in a throwaway container layer (--target keeps the audited env untouched).
 run "pip-audit (image api)" $engine run --rm --user 0 --entrypoint sh "$api" -c \
@@ -31,9 +31,9 @@ trivy() { # trivy IMAGE [extra trivy args]: scan a saved tarball, DB cached in a
   local image="$1"; shift
   $engine save -o "$tmp/img.tar" "$image" || return 1
   $engine run --rm -v pharmacie-trivy-cache:/root/.cache -v "$tmp/img.tar:/img.tar:ro" \
-    aquasec/trivy:0.76.1 image --input /img.tar --scanners vuln --quiet "$@"
+    docker.io/aquasec/trivy:0.76.1 image --input /img.tar --scanners vuln --quiet "$@"
 }
-for image in "$api" "$proxy" postgres:16-alpine; do
+for image in "$api" "$proxy" docker.io/library/postgres:16-alpine; do
   echo "=== Trivy $image (all severities)"
   trivy "$image" --table-mode detailed || echo "--- Trivy scan error on $image"
   run "Trivy $image (HIGH/CRITICAL gate)" trivy "$image" --quiet --severity HIGH,CRITICAL --exit-code 1 --output /dev/null

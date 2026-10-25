@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # Fresh production stack (compose.yaml, Caddy HTTPS) on a unique project, then:
 #   scripts/e2e.sh        install + the Playwright §11 scenario (HTTPS_PORT 18443)
-#   scripts/e2e.sh smoke  install + health check only, for podman-compose (HTTPS_PORT 18444)
-# Env: COMPOSE (default "docker compose"), ENGINE (docker|podman), HTTPS_PORT. Secrets and passwords
+#   scripts/e2e.sh smoke  install + health check only (HTTPS_PORT 18444)
+# Env: COMPOSE (default podman-compose), ENGINE (default podman), HTTPS_PORT. Secrets and passwords
 # live in a private temp dir; the stack, its volumes and its images are removed on exit, also on failure.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 mode="${1:-e2e}"
 export HTTPS_PORT="${HTTPS_PORT:-$([ "$mode" = smoke ] && echo 18444 || echo 18443)}"
 project="pharmacie-$mode-$$"
-read -ra compose <<<"${COMPOSE:-docker compose}"
-engine="${ENGINE:-docker}"
+read -ra compose <<<"${COMPOSE:-podman-compose}"
+engine="${ENGINE:-podman}"
 tmp="$(mktemp -d)" # mode 700: only this user can reach the files below
 umask 022          # the files themselves are bind-mounted one by one and read by uid 10001, so 644
 rand() { head -c 18 /dev/urandom | base64 | tr -d '/+=\n'; }
@@ -60,7 +60,8 @@ echo "second install refused: ok"
 
 cd "$root/frontend"
 # Playwright image pinned to the @playwright/test version; --network host reaches the published port.
-"$engine" run --rm --network host --ipc=host --user "$(id -u):$(id -g)" -e HOME=/tmp \
-  -e E2E_BASE_URL="$url" -e E2E_ADMIN_PASSWORD -e E2E_USER_PASSWORD -e E2E_NEW_USER_PASSWORD -v "$PWD:/work" -w /work \
+# keep-id: the container runs as the host user, so the report written to /work stays owned by you.
+"$engine" run --rm --network host --ipc=host --userns=keep-id -e HOME=/tmp \
+  -e E2E_BASE_URL="$url" -e E2E_ADMIN_PASSWORD -e E2E_USER_PASSWORD -e E2E_NEW_USER_PASSWORD -v "$PWD:/work:z" -w /work \
   mcr.microsoft.com/playwright:v1.64.1-noble npx playwright test
 echo "rapport Playwright : $PWD/playwright-report/index.html"

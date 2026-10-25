@@ -27,7 +27,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
 
   useEffect(() => {
-    document.title = 'Connexion – Fiches de la pharmacie'
+    document.title = 'Connexion – Interventions pharmaceutiques'
   }, [])
 
   if (me.data) return <Navigate to={from ?? '/'} replace />
