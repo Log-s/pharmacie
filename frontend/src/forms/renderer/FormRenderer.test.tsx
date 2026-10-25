@@ -74,7 +74,7 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) =>
-      url === '/api/profiles' ? Response.json([profile, { ...profile, id: 'p2', display_name: 'Paul Roux', number: 2 }]) : Response.json({ reference: 'FIXME-000042' }),
+      url === '/api/profiles' ? Response.json([profile, { ...profile, id: 'p2', display_name: 'Paul Roux', number: 2 }]) : Response.json({ reference: '10-2026-042' }),
     ),
   )
 })
@@ -118,16 +118,16 @@ describe('FormRenderer (edit)', () => {
     const today = format(new Date(), 'd MMMM yyyy', { locale: fr })
     expect(screen.getByRole('button', { name: /^Date du contrôle/ })).toHaveAccessibleName(new RegExp(`\\(obligatoire\\) ${today}$`))
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Auteur' })).toHaveTextContent('Claire Martin'))
-    await waitFor(() => expect(screen.getByLabelText('Référence')).toHaveValue('FIXME-000042'))
+    await waitFor(() => expect(screen.getByLabelText('Référence')).toHaveValue('10-2026-042'))
   })
 
   test('validates the reference with the central format', async () => {
     const onSubmit = renderForm()
-    await waitFor(() => expect(screen.getByLabelText('Référence')).toHaveValue('FIXME-000042'))
-    fireEvent.change(screen.getByLabelText('Référence'), { target: { value: 'FIXME-42' } })
+    await waitFor(() => expect(screen.getByLabelText('Référence')).toHaveValue('10-2026-042'))
+    fireEvent.change(screen.getByLabelText('Référence'), { target: { value: '10-26-42' } })
     fireEvent.click(screen.getByRole('radio', { name: 'Conforme' }))
     submit()
-    expect(await screen.findByText(/Format attendu : FIXME-000042/)).toBeInTheDocument()
+    expect(await screen.findByText(/Format attendu : MM-AAAA-NNN/)).toBeInTheDocument()
     expect(screen.getByLabelText('Référence')).toHaveAttribute('aria-invalid', 'true')
     expect(onSubmit).not.toHaveBeenCalled()
   })
@@ -156,7 +156,7 @@ describe('FormRenderer (edit)', () => {
 
   test('submits the U7 data format: visible values only, no empty strings, untouched reference = null', async () => {
     const onSubmit = renderForm()
-    await waitFor(() => expect(screen.getByLabelText('Référence')).toHaveValue('FIXME-000042'))
+    await waitFor(() => expect(screen.getByLabelText('Référence')).toHaveValue('10-2026-042'))
     fireEvent.click(screen.getByRole('radio', { name: 'Non conforme' }))
     fireEvent.change(screen.getByLabelText(/Action/), { target: { value: 'Retour fournisseur' } })
     fireEvent.click(screen.getByRole('radio', { name: 'Conforme' }))
@@ -173,12 +173,12 @@ describe('FormRenderer (edit)', () => {
 
   test('a chosen reference is sent as typed', async () => {
     const onSubmit = renderForm()
-    await waitFor(() => expect(screen.getByLabelText('Référence')).toHaveValue('FIXME-000042'))
-    fireEvent.change(screen.getByLabelText('Référence'), { target: { value: 'FIXME-000100' } })
+    await waitFor(() => expect(screen.getByLabelText('Référence')).toHaveValue('10-2026-042'))
+    fireEvent.change(screen.getByLabelText('Référence'), { target: { value: '10-2026-100' } })
     fireEvent.click(screen.getByRole('radio', { name: 'Conforme' }))
     submit()
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
-    expect(onSubmit.mock.calls[0][0].reference).toBe('FIXME-000100')
+    expect(onSubmit.mock.calls[0][0].reference).toBe('10-2026-100')
   })
 
   test('unchecking an option with filled children asks first; cancel keeps everything', async () => {
@@ -201,10 +201,10 @@ describe('FormRenderer (edit)', () => {
 
   test('existing form: values loaded, no prefill, server errors shown on the field', async () => {
     const onSubmit = renderForm({
-      defaultValue: { reference: 'FIXME-000007', data: { [ID(9)]: ID(11), [ID(12)]: 'Rappel' } },
+      defaultValue: { reference: '10-2026-007', data: { [ID(9)]: ID(11), [ID(12)]: 'Rappel' } },
       errors: { [ID(12)]: 'Texte refusé par le serveur.', reference: 'Cette référence est déjà utilisée par une autre fiche.' },
     })
-    expect(screen.getByLabelText('Référence')).toHaveValue('FIXME-000007')
+    expect(screen.getByLabelText('Référence')).toHaveValue('10-2026-007')
     expect(screen.getByLabelText(/Action/)).toHaveValue('Rappel')
     expect(screen.getByRole('button', { name: /Date du contrôle/ })).toHaveTextContent('Choisir une date')
     expect(await screen.findByText('Texte refusé par le serveur.')).toBeInTheDocument()
@@ -218,14 +218,14 @@ describe('FormRenderer (readonly)', () => {
     renderForm({
       mode: 'readonly',
       defaultValue: {
-        reference: 'FIXME-000007',
+        reference: '10-2026-007',
         data: { [ID(2)]: '2026-10-24', [ID(3)]: 'p2', [ID(5)]: [ID(7)], [ID(8)]: 'Étiquette illisible', [ID(9)]: ID(10), [ID(12)]: 'caché' },
       },
     })
     expect(screen.queryAllByRole('textbox')).toHaveLength(0)
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
     expect(screen.queryAllByRole('radio')).toHaveLength(0)
-    expect(screen.getByText('FIXME-000007')).toBeInTheDocument()
+    expect(screen.getByText('10-2026-007')).toBeInTheDocument()
     expect(screen.getByText('24 octobre 2026')).toBeInTheDocument()
     expect(await screen.findByText('Paul Roux')).toBeInTheDocument()
     expect(screen.getByText('Écart constaté')).toBeInTheDocument()

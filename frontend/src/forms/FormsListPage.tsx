@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { api } from '@/lib/api'
+import { REFERENCE_EXAMPLE, REFERENCE_HINT } from '@/config/reference'
 import { useProfiles } from '@/profiles/api'
 import { DateFilter } from './DateFilter'
 import { OwnerBadge } from './OwnerBadge'
@@ -90,8 +91,8 @@ export default function FormsListPage() {
       />
       <form className="mb-5 flex flex-col gap-3" aria-label="Recherche et filtres des fiches" onSubmit={(e) => e.preventDefault()}>
         <div className="flex flex-wrap items-end gap-3">
-          <TextFilter id="fiches-recherche" label="Rechercher" placeholder="Ex. : amoxicilline, FIXME-000042…" className="min-w-64 flex-1 sm:max-w-md" value={filters.q} onCommit={(q) => change({ q })} />
-          <TextFilter id="fiches-reference" label="Référence" placeholder="FIXME-000042" className="w-44" value={filters.reference} onCommit={(reference) => change({ reference })} />
+          <TextFilter id="fiches-recherche" label="Rechercher" placeholder={`Ex. : amoxicilline, ${REFERENCE_EXAMPLE}…`} className="min-w-64 flex-1 sm:max-w-md" value={filters.q} onCommit={(q) => change({ q })} />
+          <TextFilter id="fiches-reference" label="Référence" placeholder={REFERENCE_HINT} className="w-44" value={filters.reference} onCommit={(reference) => change({ reference })} />
           {filtered && (
             <Button type="button" variant="ghost" onClick={() => setSearch({}, { replace: true })}>
               <XIcon data-icon="inline-start" />

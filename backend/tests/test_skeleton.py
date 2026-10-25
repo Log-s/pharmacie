@@ -102,9 +102,13 @@ def test_activity_log_rejects_update_and_delete(db, statement):
 
 
 def test_reference_format():
-    assert format_reference(42) == "FIXME-000042"
-    assert is_valid_reference("FIXME-000042")
-    for bad in ("FIXME-42", "FIXME-0000420", "fixme-000042", "FIXME-٠٠٠٠٤٢", " FIXME-000042"):
+    assert format_reference("10-2026", 42) == "10-2026-042"
+    assert format_reference("10-2026", 1000) == "10-2026-1000"
+    for good in ("10-2026-001", "01-2026-042", "12-1999-999", "10-2026-1000", "10-2026-12345"):
+        assert is_valid_reference(good)
+    bad_values = ("13-2026-001", "00-2026-001", "10-2026-0001", "10-26-001", "AB-000001")
+    more_bad = ("10-2026-01", "10-2026-001\n", " 10-2026-001", "١٠-٢٠٢٦-٠٤٢", "10-2026-00a")
+    for bad in (*bad_values, *more_bad):
         assert not is_valid_reference(bad)
 
 

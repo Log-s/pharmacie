@@ -49,7 +49,7 @@ Check new pairs before adding them.
   lead `text-base` 16 · h3 `text-lg` 18 · h2 `text-xl` 20 · h1 `text-2xl` 24.
 - Hierarchy by weight before size: 600 titles, 500 labels/nav, 400 body; `text-muted-foreground` for meta.
 - Page h1: `text-2xl font-semibold tracking-tight` (`components/PageHeader.tsx`). Headings balance-wrap.
-- `tabular-nums` on every changing number (references `FIXME-000123`, dates, counters).
+- `tabular-nums` on every changing number (references `10-2026-123`, dates, counters).
 - French copy, sentence case, no-break space before `:` `;` `?` `!`.
 
 ## Spacing, radius, elevation
