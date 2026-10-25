@@ -132,8 +132,7 @@ def test_pdf_response_and_journal(exported, db):
 
 
 def test_admin_exports_any_form_and_annex_title(db, make_client, admin_client, profile_factory):
-    db.add(Annex(id=uuid.UUID(ANNEX), title="Procédure froid", filename="f.pdf", storage_path="x",
-                 size=1, sha256="0" * 64))  # fmt: skip
+    db.add(Annex(id=uuid.UUID(ANNEX), title="Procédure froid", body_html="", body_text=""))
     db.commit()
     client = make_client("user", profile_factory())
     form = created(client, publish(db, NODES), {RADIO: R1})
