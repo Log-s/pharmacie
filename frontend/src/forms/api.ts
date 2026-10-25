@@ -2,7 +2,7 @@ import { ApiError, meQueryKey, queryClient } from '@/lib/api'
 import type { FormValue } from '@/forms/renderer'
 import type { TemplateTree } from '@/templates/schema'
 
-export type Owner = { id: string; display_name: string; initials: string; color: string; archived: boolean }
+export type Owner = { id: string; display_name: string; number: number; color: string; archived: boolean }
 /** U7 `FormSummary`; `can_edit` is decided by the server (owner with active profile, or admin). */
 export type FormSummary = {
   id: string

@@ -36,7 +36,7 @@ export default function ProfilesPage() {
     <>
       <PageHeader
         title="Profils"
-        description="Les profils de l'équipe : nom affiché, initiales et couleur."
+        description="Les profils de l'équipe : nom affiché, numéro et couleur."
         actions={
           <Button onClick={() => setEditing(null)}>
             <PlusIcon data-icon="inline-start" />
@@ -65,7 +65,7 @@ export default function ProfilesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Profil</TableHead>
-                <TableHead>Initiales</TableHead>
+                <TableHead>Numéro</TableHead>
                 <TableHead>Couleur</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -75,12 +75,12 @@ export default function ProfilesPage() {
                 <TableRow key={profile.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Paraphe initials={profile.initials} color={profile.color} />
+                      <Paraphe number={profile.number} color={profile.color} />
                       <span className="font-medium">{profile.display_name}</span>
                       {profile.archived_at && <Badge variant="secondary">Archivé</Badge>}
                     </div>
                   </TableCell>
-                  <TableCell className="tabular-nums">{profile.initials}</TableCell>
+                  <TableCell className="tabular-nums">{profile.number}</TableCell>
                   <TableCell className="tabular-nums text-muted-foreground">{profile.color}</TableCell>
                   <TableCell>
                     {!profile.archived_at && (

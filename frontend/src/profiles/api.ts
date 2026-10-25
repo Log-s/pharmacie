@@ -2,8 +2,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { type Me } from '@/auth/session'
 import { api, meQueryKey, queryClient } from '@/lib/api'
 
-export type Profile = { id: string; display_name: string; initials: string; color: string; archived_at: string | null }
-export type ProfileInput = Pick<Profile, 'display_name' | 'initials' | 'color'>
+export type Profile = { id: string; display_name: string; number: number; color: string; archived_at: string | null }
+export type ProfileInput = Pick<Profile, 'display_name' | 'number' | 'color'>
 
 export const profilesKey = ['profiles'] as const
 

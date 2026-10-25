@@ -3,7 +3,7 @@ import { format, isValid, parse } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { api } from '@/lib/api'
 
-export type Profile = { id: string; display_name: string; initials: string; color: string; archived_at: string | null }
+export type Profile = { id: string; display_name: string; number: number; color: string; archived_at: string | null }
 
 /** DOM id of a node's (first) control: focus target for errors, `htmlFor` of its label. */
 export const fieldId = (nodeId: string) => `champ-${nodeId}`

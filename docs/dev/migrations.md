@@ -75,8 +75,8 @@ migrations divergent.
       alembic revision --autogenerate --rev-id <slug> -m "<description>"
     ```
 
-    Convention : l'identifiant de révision est un nom court explicite (`u1_initial`,
-    `ship_activity_truncate`), pas un hachage.
+    Convention : l'identifiant de révision est un nom court explicite (`u1_initial`, `ship_activity_truncate`,
+    `profile_number`), pas un hachage.
 
 3. **Relisez** le fichier : l'autogénération ne voit ni les triggers, ni les fonctions, ni les
    données à transformer. Écrivez `downgrade()`.

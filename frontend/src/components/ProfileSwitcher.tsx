@@ -35,7 +35,7 @@ export function ProfileSwitcher() {
       <DropdownMenuTrigger asChild>
         {/* A native button: shadcn's Button does not forward `ref` under React 18, which Popper needs. */}
         <button type="button" className={buttonVariants({ variant: 'ghost', className: 'h-9 gap-2 px-2' })} aria-label={`Profil actif : ${profile.display_name}. Changer de profil`}>
-          <Paraphe initials={profile.initials} color={profile.color} />
+          <Paraphe number={profile.number} color={profile.color} />
           <span className="max-w-40 truncate text-sm font-medium">{profile.display_name}</span>
           <ChevronDownIcon data-icon="inline-end" />
         </button>
@@ -48,7 +48,7 @@ export function ProfileSwitcher() {
           <DropdownMenuRadioGroup value={profile.id} onValueChange={choose}>
             {profiles.data.map((p) => (
               <DropdownMenuRadioItem key={p.id} value={p.id} className="gap-2">
-                <Paraphe initials={p.initials} color={p.color} />
+                <Paraphe number={p.number} color={p.color} />
                 <span className="truncate">{p.display_name}</span>
               </DropdownMenuRadioItem>
             ))}
@@ -59,15 +59,15 @@ export function ProfileSwitcher() {
   )
 }
 
-/** A profile's initials stamped in its color, like a paraphe in a register (see DESIGN.md). */
-export function Paraphe({ initials, color, className }: { initials: string; color: string; className?: string }) {
+/** A profile number stamped in its color, like a paraphe in a register (see DESIGN.md). */
+export function Paraphe({ number, color, className }: { number: number | string; color: string; className?: string }) {
   return (
     <span
       aria-hidden="true"
       className={cn('flex size-7 shrink-0 items-center justify-center rounded-md border-2 text-xs font-semibold tabular-nums', className)}
       style={{ borderColor: color, backgroundColor: `color-mix(in oklch, ${color} 14%, transparent)` }}
     >
-      {initials}
+      {number}
     </span>
   )
 }

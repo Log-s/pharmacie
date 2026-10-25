@@ -10,8 +10,8 @@ const USER_PASSWORD = process.env.E2E_USER_PASSWORD ?? ''
 const NEW_USER_PASSWORD = process.env.E2E_NEW_USER_PASSWORD ?? ''
 
 const PROFILES = [
-  { name: 'Camille Martin', initials: 'CM' },
-  { name: 'Louis Durand', initials: 'LD' },
+  { name: 'Camille Martin', number: 1 },
+  { name: 'Louis Durand', number: 2 },
 ]
 const ANNEX = { title: 'Protocole de dilution', excerpt: 'Diluer a 5 pour cent avant usage' }
 const TEMPLATE = 'Contrôle des préparations'
@@ -71,11 +71,12 @@ test('admin : connexion, un mauvais mot de passe est refusé', async () => {
 
 test('admin : crée deux profils', async () => {
   await admin.getByRole('link', { name: 'Profils' }).click()
-  for (const { name, initials } of PROFILES) {
+  for (const { name, number } of PROFILES) {
     await admin.getByRole('button', { name: 'Nouveau profil' }).click()
     const dialog = admin.getByRole('dialog', { name: 'Nouveau profil' })
     await dialog.getByLabel('Nom affiché').fill(name)
-    await dialog.getByLabel('Initiales').fill(initials)
+    await expect(dialog.getByLabel('Numéro')).toHaveValue(String(number)) // smallest free number
+    await dialog.getByLabel('Numéro').fill(String(number))
     await dialog.getByRole('radio', { name: name === PROFILES[0].name ? 'Vert' : 'Bleu' }).click()
     await dialog.getByRole('button', { name: 'Créer le profil' }).click()
     await toast(admin, 'Profil créé.')
