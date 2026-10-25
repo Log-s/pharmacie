@@ -4,7 +4,7 @@ import { afterEach, beforeAll, describe, expect, test, vi } from 'vitest'
 import { AnnexInfo } from '@/annexes/AnnexInfo'
 import { queryClient } from '@/lib/api'
 
-const annex = { id: 'a1', title: 'Protocole de dilution', filename: 'dilution.pdf', size: 2048, sha256: 'x', excerpt: 'Diluer à 10 % dans du sérum physiologique.', created_at: '2026-01-02T10:00:00Z' }
+const annex = { id: 'a1', title: 'Protocole de dilution', folder_id: null, body_html: '<p>Diluer</p>', excerpt: 'Diluer à 10 % dans du sérum physiologique.', created_at: '2026-01-02T10:00:00Z', updated_at: '2026-01-02T10:00:00Z' }
 
 beforeAll(() => {
   // Radix popper needs ResizeObserver, absent from jsdom.
@@ -23,7 +23,7 @@ const renderInfo = () =>
   )
 
 describe('AnnexInfo', () => {
-  test('keyboard focus on the icon shows the excerpt; the link opens the PDF in a new tab', async () => {
+  test('keyboard focus on the icon shows the excerpt; the link opens the note in a new tab', async () => {
     const fetchMock = vi.fn().mockResolvedValue(Response.json(annex))
     vi.stubGlobal('fetch', fetchMock)
     renderInfo()
@@ -34,12 +34,12 @@ describe('AnnexInfo', () => {
     expect(screen.queryByText(annex.excerpt)).not.toBeInTheDocument()
     await act(async () => icon.focus())
     expect(await screen.findByText(annex.excerpt)).toBeInTheDocument()
-    expect(icon).toHaveAttribute('href', '/api/annexes/a1/file')
+    expect(icon).toHaveAttribute('href', '/annexes/notes/a1')
     expect(icon).toHaveAttribute('target', '_blank')
     expect(icon).toHaveAttribute('rel', 'noopener')
     expect(fetchMock.mock.calls[0][0]).toBe('/api/annexes/a1')
-    // the excerpt itself is clickable and goes to the same PDF
-    expect(screen.getByText(annex.excerpt).closest('a')).toHaveAttribute('href', '/api/annexes/a1/file')
+    // the excerpt itself is clickable and goes to the same note
+    expect(screen.getByText(annex.excerpt).closest('a')).toHaveAttribute('href', '/annexes/notes/a1')
     fireEvent.keyDown(icon, { key: 'Escape' })
   })
 

@@ -3,59 +3,88 @@ import { toast } from 'sonner'
 import type { Me } from '@/auth/session'
 import { api, ApiError, meQueryKey, queryClient } from '@/lib/api'
 
-export type Annex = { id: string; title: string; filename: string; size: number; sha256: string; excerpt: string; created_at: string }
+export type Folder = { id: string; name: string; parent_id: string | null }
+/** A note as listed by the tree and the search (no body). */
+export type NoteItem = { id: string; title: string; folder_id: string | null; excerpt: string; updated_at: string }
+export type Note = NoteItem & { body_html: string; created_at: string }
+export type Tree = { folders: Folder[]; notes: NoteItem[] }
 
 export const annexesKey = ['annexes'] as const
-/** Mirrors the server default `ANNEX_MAX_BYTES`; the server stays authoritative (413). */
-export const MAX_ANNEX_BYTES = 20 * 1024 * 1024
 
-export const annexFileUrl = (id: string) => `/api/annexes/${id}/file`
+export const useAnnexTree = () => useQuery({ queryKey: [...annexesKey, 'tree'], queryFn: () => api<Tree>('/annexes/tree') })
 
-export function useAnnexes(q: string) {
-  return useQuery({
-    queryKey: [...annexesKey, 'list', q],
-    queryFn: () => api<Annex[]>(`/annexes${q ? `?q=${encodeURIComponent(q)}` : ''}`),
-  })
+export const useAnnexSearch = (q: string) =>
+  useQuery({ queryKey: [...annexesKey, 'search', q], queryFn: () => api<NoteItem[]>(`/annexes?q=${encodeURIComponent(q)}`), enabled: !!q })
+
+export const useNote = (id: string) => useQuery({ queryKey: [...annexesKey, id], queryFn: () => api<Note>(`/annexes/${id}`), staleTime: 60_000 })
+
+/** PDF of a folder's subtree; the whole tree when no folder is given. */
+export const annexExportUrl = (folderId?: string | null) => `/api/annexes/export.pdf${folderId ? `?folder_id=${folderId}` : ''}`
+
+const group = <T,>(items: T[], key: (item: T) => string | null, label: (item: T) => string) => {
+  const groups = new Map<string | null, T[]>()
+  for (const item of [...items].sort((a, b) => label(a).localeCompare(label(b), 'fr'))) groups.set(key(item), [...(groups.get(key(item)) ?? []), item])
+  return groups
 }
 
-export function useAnnex(id: string) {
-  return useQuery({ queryKey: [...annexesKey, id], queryFn: () => api<Annex>(`/annexes/${id}`), staleTime: 60_000 })
+/** Client-side view of the flat tree: children sorted alphabetically (folders, then notes). */
+export function indexTree({ folders, notes }: Tree) {
+  const byId = new Map(folders.map((folder) => [folder.id, folder]))
+  const subfolders = group(folders, (folder) => folder.parent_id, (folder) => folder.name)
+  return {
+    byId,
+    subfolders,
+    notesIn: group(notes, (note) => note.folder_id, (note) => note.title),
+    /** Folders from the root down to `id` (empty for the root). */
+    path(id: string | null) {
+      const chain: Folder[] = []
+      for (let folder = id ? byId.get(id) : undefined; folder; folder = folder.parent_id ? byId.get(folder.parent_id) : undefined) chain.unshift(folder)
+      return chain
+    },
+    /** Every folder below `id`, `id` excluded. */
+    descendants(id: string) {
+      const found = new Set<string>()
+      const todo = [id]
+      for (let next = todo.pop(); next; next = todo.pop())
+        for (const child of subfolders.get(next) ?? []) {
+          found.add(child.id)
+          todo.push(child.id)
+        }
+      return found
+    },
+  }
 }
+export type TreeIndex = ReturnType<typeof indexTree>
+
+/** « Annexes / Protocoles / Stupéfiants » for a folder id (null = root). */
+export const pathLabel = (index: TreeIndex, id: string | null) => ['Annexes', ...index.path(id).map((folder) => folder.name)].join(' / ')
 
 /**
- * Multipart upload and DELETE with a 409 body (`{detail, templates}`) cannot go through `api()`
- * (JSON only, keeps `detail` alone), so this mirrors its CSRF/401/403 handling and rejects with an
- * ApiError whose `detail` is the whole response body.
+ * DELETE with a 409 body (`{detail, templates}`) cannot go through `api()` (it keeps `detail` alone),
+ * so this mirrors its CSRF/401/403 handling and rejects with an ApiError whose `detail` is the whole body.
  */
-export async function annexRequest<T>(path: string, method: 'POST' | 'DELETE', body?: FormData): Promise<T> {
+export async function annexRequest(path: string): Promise<void> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   const csrf = queryClient.getQueryData<Me | null>(meQueryKey)?.csrf_token
   if (csrf) headers['X-CSRF-Token'] = csrf
   let response: Response
   try {
-    response = await fetch(`/api${path}`, { method, headers, body, credentials: 'same-origin' })
+    response = await fetch(`/api${path}`, { method: 'DELETE', headers, credentials: 'same-origin' })
   } catch {
     throw new ApiError(0, 'Serveur injoignable : vérifiez la connexion puis réessayez.')
   }
-  if (response.status === 204) return undefined as T
+  if (response.status === 204) return
   const payload = await response.json().catch(() => null)
-  if (response.ok) return payload as T
+  if (response.ok) return
   const detail = payload?.detail
   const message =
     typeof detail === 'string'
       ? detail
       : Array.isArray(detail)
         ? detail.map((e: { msg?: string }) => e.msg).filter(Boolean).join(' ')
-        : response.status === 413
-          ? 'Fichier trop volumineux.'
-          : `Erreur du serveur (${response.status}). Réessayez ; si cela persiste, prévenez l'administrateur.`
+        : `Erreur du serveur (${response.status}). Réessayez ; si cela persiste, prévenez l'administrateur.`
   const error = new ApiError(response.status, message, payload)
   if (response.status === 401) queryClient.setQueryData(meQueryKey, null)
   if (response.status === 403) toast.error(error.message)
   throw error
 }
-
-export const formatSize = (bytes: number) =>
-  bytes < 1024 * 1024
-    ? `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.max(1, bytes / 1024))} Ko`
-    : `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(bytes / 1024 / 1024)} Mo`
