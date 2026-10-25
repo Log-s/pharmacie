@@ -10,7 +10,7 @@ import { routes } from '@/router'
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 const admin: Me = { role: 'admin', active_profile: null, csrf_token: 'csrf-admin' }
-const profile = { id: 'p1', display_name: 'Claire Martin', initials: 'CM', color: '#2f855a' }
+const profile = { id: 'p1', display_name: 'Claire Martin', number: 1, color: '#2f855a' }
 const user: Me = { role: 'user', active_profile: profile, csrf_token: 'csrf-user' }
 const userNoProfile: Me = { ...user, active_profile: null }
 

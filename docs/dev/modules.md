@@ -33,7 +33,7 @@ modules and their contracts. Written in English, like the code comments. The run
 
 - Endpoints: `POST /api/auth/login {role: "admin"|"user", password}` → `Me` + cookie `session`
   (`HttpOnly; Secure; SameSite=Strict; Path=/`); 401 bad password, 423 locked (`Retry-After`),
-  429 rate limited. `GET /api/auth/me` → `{role, active_profile: {id, display_name, initials,
+  429 rate limited. `GET /api/auth/me` → `{role, active_profile: {id, display_name, number,
   color} | null, csrf_token}`. `POST /api/auth/logout` → 204. `POST /api/admin/user-password
   {password}` (admin) → 204, 422 with the French policy message; closes every user session.
 - Sessions (`services/sessions.py`): cookie = `secrets.token_urlsafe(32)`, table stores its
@@ -76,7 +76,7 @@ modules and their contracts. Written in English, like the code comments. The run
 - Endpoints (`api/profiles.py`, logic in `services/profiles.py`, schemas in `schemas/profiles.py`):
   - `GET /api/profiles`: any session; active (non-archived) profiles, sorted by name.
     `?include_archived=true` is admin-only (403 for the user session). Item:
-    `{id, display_name, initials, color, archived_at}`.
+    `{id, display_name, number, color, archived_at}` (`number`: int).
   - `POST /api/profiles` (admin) → 201 `ProfileOut`. `PUT /api/profiles/{id}` (admin, full
     replacement of the three fields) → `ProfileOut`, 404 if unknown. Unknown body fields → 422.
   - `GET /api/profiles/{id}/deletion-impact` (admin) → `{forms_count, will_archive}`.
@@ -86,12 +86,18 @@ modules and their contracts. Written in English, like the code comments. The run
     (`FOR UPDATE`) so a concurrent form insert cannot slip in between count and delete.
   - `POST /api/session/profile {profile_id}` (user only) → `Me` with the new `active_profile`;
     404 unknown, 409 archived (French messages), 403 admin, 422 malformed id.
-- Validation (422, French, `detail[].msg`): `display_name` trimmed, 1-100 chars; `initials` trimmed,
-  1-3 chars; `color` `^#[0-9a-fA-F]{6}$`.
+- Validation (422, French, `detail[].msg`): `display_name` trimmed, 1-100 chars; `number` a JSON integer
+  1-999 (« Le numéro doit être un nombre entier de 1 à 999. », also when missing); `color`
+  `^#[0-9a-fA-F]{6}$`. Unique among non-archived profiles: partial unique index
+  `uq_profiles_number_active` (migration `profile_number`, `CHECK number BETWEEN 1 AND 999`; an
+  archived profile keeps its number). A clash is a 409 « Le numéro N est déjà attribué au profil
+  Nom. » on create and update, raised from the index at flush time
+  (`services/profiles.flush_unique_number`), so concurrent writes are covered too. `python -m
+  app.cli install` gives the first profile number 1.
 - Sessions pointing at a deleted profile fall back to no profile (FK `SET NULL`); an archived
   active profile is already treated as none by `/auth/me` and `require_active_profile`.
 - Activity actions (target `profile`, target_id = profile id):
-  - `profile_create` (details: the three fields), `profile_update` (details `before`, `after`),
+  - `profile_create` (details: `display_name`, `number`, `color`), `profile_update` (details `before`, `after`),
   - `profile_archive` (details `display_name`, `forms_count`),
   - `profile_delete` (details `display_name`, `forms_count: 0`),
   - `profile_switch` (profile_id = new profile, details `{from, to}`, `from` null when none).
@@ -148,7 +154,7 @@ modules and their contracts. Written in English, like the code comments. The run
   `useLogout()`. After changing the active profile (U10), `queryClient.invalidateQueries()`.
 - Shell slots: `components/ProfileSwitcher.tsx` (U10 replaces it, keep the export), `components/nav.ts`
   (links per role), `components/PageHeader.tsx`, `PagePlaceholder.tsx`, `StatusPage.tsx`; toasts via
-  `sonner`. Paraphe (initials in a ring of the profile color) for every profile display.
+  `sonner`. Paraphe (the profile number in a ring of the profile color) for every profile display.
 - Compte utilisateur: `POST /api/admin/user-password`; client checks ≥ 12 chars + confirmation, shows
   the live length and the server's zxcvbn verdict (422 message) on the field.
 - Dev stack used for browser tests: `compose run` api dev (`-p 127.0.0.1:$API_DEV_PORT:8000`, as
@@ -285,7 +291,7 @@ modules and their contracts. Written in English, like the code comments. The run
     (1-100000, default 1), `page_size` (1-100, default 25); U+0000 in `q`/`reference` → 422.
     Field filters use each form's own version tree.
   - `FormSummary = {id, reference, template_id, template_name, template_version_id, version, owner: {id,
-    display_name, initials, color, archived}, created_at, updated_at, can_edit}`.
+    display_name, number, color, archived}, created_at, updated_at, can_edit}`.
   - `GET /api/forms/next-reference` (any session) → `{reference}`: preview, not reserved (send `null` to get one).
   - `POST /api/forms {template_version_id, reference?, data}` (user + active profile; admin 403) → 201 `FormOut`.
     Owner = active profile. 422 if the version is unknown or its template archived (any version of a live
@@ -340,7 +346,7 @@ modules and their contracts. Written in English, like the code comments. The run
 ### U10: UI admin (profils, annexes, journal) et choix de profil
 
 - Pages: `profiles/ProfilePickerPage` (`/profil`, cartes-boutons, Entrée/Espace), `profiles/ProfilesPage` (admin CRUD,
-  `ProfileFormDialog` = nom, initiales, pastilles de couleur + `<input type=color>`, aperçu paraphe), `annexes/AnnexesPage`
+  `ProfileFormDialog` = nom, numéro (pré-rempli avec le plus petit numéro libre parmi les profils actifs; 409 affiché sur le champ), pastilles de couleur + `<input type=color>`, aperçu paraphe), `annexes/AnnexesPage`
   (les deux rôles; admin: `AnnexUpload` glisser-déposer + fichier, `AnnexDialogs` modifier/supprimer), `admin/JournalPage`.
 - `components/ProfileSwitcher`: menu déroulant d'en-tête (radio des profils actifs, chargés à l'ouverture). Changer =
   `POST /api/session/profile` puis `setQueryData(me)` + `invalidateQueries()` (`profiles/api.ts`). Export `Paraphe` inchangé.

@@ -5,7 +5,7 @@ import type { Owner } from './api'
 export function OwnerBadge({ owner }: { owner: Owner }) {
   return (
     <span className="inline-flex items-center gap-2">
-      <Paraphe initials={owner.initials} color={owner.color} />
+      <Paraphe number={owner.number} color={owner.color} />
       <span>
         {owner.display_name}
         {owner.archived && <span className="text-muted-foreground"> (profil supprimé)</span>}

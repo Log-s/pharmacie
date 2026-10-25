@@ -10,7 +10,7 @@ from tests.test_forms_common import AUTHOR, DATE, TITLE, created, publish, updat
 @pytest.fixture
 def world(db, make_client, profile_factory):
     """Profiles A and B, templates Contrôle and Inventaire, forms f1 (A), f2 (A), f3 (B)."""
-    a, b = profile_factory("Alice", "AL"), profile_factory("Bruno", "BR", "#16a34a")
+    a, b = profile_factory("Alice"), profile_factory("Bruno", 2, "#16a34a")
     controle, inventaire = publish(db, name="Contrôle"), publish(db, name="Inventaire")
     ca, cb = make_client("user", a), make_client("user", b)
 
@@ -97,7 +97,7 @@ def test_get_is_readable_by_everyone_with_can_edit_for_the_caller(world, admin_c
     assert detail["owner"] == {
         "id": str(world["b"].id),
         "display_name": "Bruno",
-        "initials": "BR",
+        "number": 2,
         "color": "#16a34a",
         "archived": False,
     }

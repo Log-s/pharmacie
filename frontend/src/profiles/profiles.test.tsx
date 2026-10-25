@@ -11,9 +11,9 @@ import ProfilesPage from '@/profiles/ProfilesPage'
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
-const claire = { id: 'p1', display_name: 'Claire Martin', initials: 'CM', color: '#2f855a', archived_at: null }
-const paul = { id: 'p2', display_name: 'Paul Durand', initials: 'PD', color: '#2b6cb0', archived_at: null }
-const old = { id: 'p3', display_name: 'Ancien', initials: 'AN', color: '#4a5568', archived_at: '2026-01-01T00:00:00Z' }
+const claire = { id: 'p1', display_name: 'Claire Martin', number: 1, color: '#2f855a', archived_at: null }
+const paul = { id: 'p2', display_name: 'Paul Durand', number: 3, color: '#2b6cb0', archived_at: null }
+const old = { id: 'p3', display_name: 'Ancien', number: 2, color: '#4a5568', archived_at: '2026-01-01T00:00:00Z' }
 const userMe = (active: typeof claire | null): Me => ({ role: 'user', active_profile: active, csrf_token: 'csrf-user' })
 const adminMe: Me = { role: 'admin', active_profile: null, csrf_token: 'csrf-admin' }
 
@@ -59,7 +59,7 @@ describe('profile picker', () => {
     })
     renderWithQuery(<ProfilePickerPage />, '/profil')
     const cards = await screen.findAllByRole('button')
-    expect(cards.map((c) => c.textContent)).toEqual(['CMClaire Martin', 'PDPaul Durand'])
+    expect(cards.map((c) => c.textContent)).toEqual(['1Claire Martin', '3Paul Durand'])
     expect(calls[0].key).toBe('GET /profiles') // no include_archived for the picker
     cards[1].focus()
     expect(cards[1]).toHaveFocus() // native buttons: Tab/Enter/Space work
@@ -138,24 +138,67 @@ describe('Profils page (admin)', () => {
     expect(within(dialog).getByRole('button', { name: 'Supprimer définitivement' })).toBeInTheDocument()
   })
 
-  test('create form validates, then shows the server 422 on the field', async () => {
+  const openCreateDialog = async (routes: Record<string, () => Response>) => {
     queryClient.setQueryData(meQueryKey, adminMe)
-    const calls = stubApi({
-      'GET /profiles?include_archived=true': () => Response.json([]),
-      'POST /profiles': () => Response.json({ detail: [{ loc: ['body', 'initials'], msg: 'Les initiales doivent comporter de 1 à 3 caractères.' }] }, { status: 422 }),
-    })
+    const calls = stubApi(routes)
     renderWithQuery(<ProfilesPage />)
     fireEvent.click(await screen.findByRole('button', { name: 'Nouveau profil' }))
-    const dialog = await screen.findByRole('dialog')
+    return { calls, dialog: await screen.findByRole('dialog') }
+  }
+
+  test('create form shows « Numéro », prefilled with the smallest number free among active profiles', async () => {
+    // 2 belongs to an archived profile and 3 to paul: 2 is free again.
+    const { dialog } = await openCreateDialog({ 'GET /profiles?include_archived=true': () => Response.json([claire, old, paul]) })
+    expect(within(dialog).getByLabelText('Numéro')).toHaveValue('2')
+    expect(within(dialog).getByLabelText('Numéro')).toHaveAttribute('inputmode', 'numeric')
+  })
+
+  test('create form validates, rejects non-digits in French, then shows the server 422 on the field', async () => {
+    const { calls, dialog } = await openCreateDialog({
+      'GET /profiles?include_archived=true': () => Response.json([]),
+      'POST /profiles': () => Response.json({ detail: [{ loc: ['body', 'number'], msg: 'Le numéro doit être un nombre entier de 1 à 999.' }] }, { status: 422 }),
+    })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Créer le profil' }))
     expect(await within(dialog).findByText('Le nom affiché est obligatoire.')).toBeInTheDocument()
     expect(calls.some((c) => c.key === 'POST /profiles')).toBe(false)
     fireEvent.change(within(dialog).getByLabelText('Nom affiché'), { target: { value: 'Léa Bernard' } })
-    fireEvent.change(within(dialog).getByLabelText('Initiales'), { target: { value: 'LB' } })
+    for (const bad of ['12a', '0', '1000', '', '-3']) {
+      fireEvent.change(within(dialog).getByLabelText('Numéro'), { target: { value: bad } })
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Créer le profil' }))
+      expect(await within(dialog).findByText('Le numéro doit être un nombre entier de 1 à 999.')).toBeInTheDocument()
+    }
+    expect(calls.some((c) => c.key === 'POST /profiles')).toBe(false)
+    fireEvent.change(within(dialog).getByLabelText('Numéro'), { target: { value: '42' } })
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Bleu' }))
     fireEvent.click(within(dialog).getByRole('button', { name: 'Créer le profil' }))
-    expect(await within(dialog).findByText('Les initiales doivent comporter de 1 à 3 caractères.')).toBeInTheDocument()
-    expect(calls.find((c) => c.key === 'POST /profiles')!.body).toEqual({ display_name: 'Léa Bernard', initials: 'LB', color: '#2b6cb0' })
+    await waitFor(() => expect(calls.some((c) => c.key === 'POST /profiles')).toBe(true))
+    expect(calls.find((c) => c.key === 'POST /profiles')!.body).toEqual({ display_name: 'Léa Bernard', number: 42, color: '#2b6cb0' })
+    expect(await within(dialog).findByText('Le numéro doit être un nombre entier de 1 à 999.')).toBeInTheDocument()
+  })
+
+  test('a server 409 (number already taken) lands on the Numéro field', async () => {
+    const taken = 'Le numéro 1 est déjà attribué au profil Claire Martin.'
+    const { dialog } = await openCreateDialog({
+      'GET /profiles?include_archived=true': () => Response.json([claire]),
+      'POST /profiles': () => Response.json({ detail: taken }, { status: 409 }),
+    })
+    fireEvent.change(within(dialog).getByLabelText('Nom affiché'), { target: { value: 'Léa Bernard' } })
+    fireEvent.change(within(dialog).getByLabelText('Numéro'), { target: { value: '1' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Créer le profil' }))
+    expect(await within(dialog).findByText(taken)).toBeInTheDocument()
+    expect(within(dialog).getByLabelText('Numéro')).toHaveAttribute('aria-invalid', 'true')
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  test('the table and the badges show the profile number', async () => {
+    queryClient.setQueryData(meQueryKey, adminMe)
+    stubApi({ 'GET /profiles?include_archived=true': () => Response.json([claire, paul]) })
+    renderWithQuery(<ProfilesPage />)
+    const rows = await screen.findAllByRole('row')
+    expect(within(rows[0]).getByText('Numéro')).toBeInTheDocument()
+    expect(rows.slice(1).map((r) => [within(r).getAllByRole('cell')[0].textContent, within(r).getAllByRole('cell')[1].textContent])).toEqual([
+      ['1Claire Martin', '1'],
+      ['3Paul Durand', '3'],
+    ])
   })
 })
-

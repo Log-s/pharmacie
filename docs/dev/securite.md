@@ -46,7 +46,7 @@ peut changer de profil sans mot de passe (spécification §2.2). Le journal trac
   ressource distante (récupérateur local seulement, gabarit Jinja auto-échappé).
 - **Journal** en ajout seul : aucune route d'écriture, et des triggers PostgreSQL refusent tout
   `UPDATE`, `DELETE` ou `TRUNCATE` sur `activity_log`.
-- **RGPD** : seules des données minimales sur les personnes sont stockées (nom, initiales et couleur
+- **RGPD** : seules des données minimales sur les personnes sont stockées (nom, numéro et couleur
   des profils, IP dans le journal). Les sauvegardes en contiennent : droits `600`, copie chiffrée.
 
 ## Audits

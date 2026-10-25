@@ -164,7 +164,7 @@ def test_require_active_profile_returns_it(make_client, profile_factory):
 
 
 def test_form_owner_or_admin(make_client, profile_factory):
-    owner, other = profile_factory("A", "A"), profile_factory("B", "B")
+    owner, other = profile_factory("A"), profile_factory("B")
     form_id = uuid.uuid4()
     FORMS[form_id] = SimpleNamespace(owner_profile_id=owner.id)
     path = f"/forms/{form_id}"

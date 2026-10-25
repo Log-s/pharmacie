@@ -10,11 +10,11 @@ spacing are Tailwind v4's default theme variables (`--text-*`, `--spacing`), emi
 
 ## Direction
 
-- **Domain**: officine, préparatoire, ordonnancier (register), paraphe (initials), étiquette, flacon ambré, blouse.
+- **Domain**: officine, préparatoire, ordonnancier (register), paraphe (profile number), étiquette, flacon ambré, blouse.
 - **Signature**: the green pharmacy cross (brand mark, `components/Brand.tsx`) and the **paraphe**:
-  a profile's initials stamped in a ring of its color (`Paraphe` in `components/ProfileSwitcher.tsx`).
+  a profile's number (1-999, tabular figures) stamped in a ring of its color (`Paraphe` in `components/ProfileSwitcher.tsx`).
   Reuse the paraphe wherever a profile appears (header, owner badge, profile cards); the ring keeps the
-  initials legible whatever color the admin picks (text stays `foreground`).
+  number legible whatever color the admin picks (text stays `foreground`).
 - **Rejected defaults**: neutral grey shadcn palette → green-tinted "blouse" neutrals and blue-black ink;
   Geist/Inter → Atkinson Hyperlegible Next; sidebar app → a single header with register-tab navigation.
 - Color is scarce: the green (`primary`) marks the primary action, the current nav tab, focus and success.
@@ -43,7 +43,7 @@ Check new pairs before adding them.
 ## Type
 
 - One family, self-hosted: **Atkinson Hyperlegible Next** (`@fontsource-variable/atkinson-hyperlegible-next`),
-  drawn for character distinction (0/O, 1/l/I): references, dosages and initials read without doubt.
+  drawn for character distinction (0/O, 1/l/I): references, dosages and profile numbers read without doubt.
   Fallback `system-ui`. No network font.
 - Scale (Tailwind steps, ≈ 1.2 ratio, 14 px body): caption `text-xs` 12 · body `text-sm` 14 ·
   lead `text-base` 16 · h3 `text-lg` 18 · h2 `text-xl` 20 · h1 `text-2xl` 24.

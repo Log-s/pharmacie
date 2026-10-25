@@ -18,7 +18,7 @@ class ActiveProfile(BaseModel):
 
     id: uuid.UUID
     display_name: str
-    initials: str
+    number: int
     color: str
 
 

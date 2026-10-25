@@ -89,7 +89,7 @@ function Value({ node, level, ctx }: { node: TemplateNode; level: number; ctx: C
     if (!profile) return ctx.profiles ? <span className="text-muted-foreground">Profil archivé</span> : null
     return (
       <span className="flex items-center gap-2">
-        <Paraphe initials={profile.initials} color={profile.color} />
+        <Paraphe number={profile.number} color={profile.color} />
         {profile.display_name}
       </span>
     )

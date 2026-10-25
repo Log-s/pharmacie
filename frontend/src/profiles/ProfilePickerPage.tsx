@@ -66,7 +66,7 @@ export default function ProfilePickerPage() {
                 onClick={() => choose(profile.id)}
                 className="flex min-h-20 w-full items-center gap-3 rounded-xl border bg-card p-4 text-left outline-none transition-colors hover:bg-accent focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 aria-[current=true]:border-primary"
               >
-                <Paraphe initials={profile.initials} color={profile.color} className="size-11 rounded-lg text-base" />
+                <Paraphe number={profile.number} color={profile.color} className="size-11 rounded-lg text-base" />
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{profile.display_name}</span>
                   {profile.id === activeId && (

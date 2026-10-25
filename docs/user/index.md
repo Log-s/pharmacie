@@ -27,11 +27,11 @@ connexion. Pensez à **Se déconnecter** (en haut à droite) sur un poste partag
 
 ## Choisir son profil (compte utilisateur)
 
-Chaque membre de l'équipe a un **profil** : un nom, des initiales et une couleur. Le compte
+Chaque membre de l'équipe a un **profil** : un nom, un numéro et une couleur. Le compte
 utilisateur étant partagé, c'est le profil qui dit qui fait quoi.
 
 1. Après la connexion, l'écran **Choix du profil** affiche les profils sous forme de cartes.
-2. Cliquez sur le vôtre. Ses initiales apparaissent dans l'en-tête.
+2. Cliquez sur le vôtre. Son numéro apparaît dans l'en-tête.
 3. Pour passer à un autre profil, cliquez sur votre nom dans l'en-tête : la liste
    **Changer de profil** s'ouvre, choisissez le profil. Aucun mot de passe n'est demandé.
 

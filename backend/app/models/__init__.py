@@ -10,8 +10,10 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Identity,
+    Index,
     Integer,
     MetaData,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -60,10 +62,20 @@ class Account(Base):
 
 class Profile(Base):
     __tablename__ = "profiles"
+    __table_args__ = (
+        CheckConstraint("number BETWEEN 1 AND 999", name="number_range"),
+        # Unique among active profiles only: an archived profile keeps its number for its fiches.
+        Index(
+            "uq_profiles_number_active",
+            "number",
+            unique=True,
+            postgresql_where=text("archived_at IS NULL"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = uuid_pk()
     display_name: Mapped[str] = mapped_column(String(100))
-    initials: Mapped[str] = mapped_column(String(4))
+    number: Mapped[int] = mapped_column(SmallInteger)
     color: Mapped[str] = mapped_column(String(7))  # "#rrggbb"
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = created_at()

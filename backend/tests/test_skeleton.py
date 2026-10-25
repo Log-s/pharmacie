@@ -3,7 +3,7 @@ import weasyprint
 from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect, text
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from alembic import command
 from app.cli import ALEMBIC_INI
@@ -51,6 +51,42 @@ def test_migration_creates_every_spec_table():
 
 def test_models_match_migrations():
     command.check(Config(str(ALEMBIC_INI)))  # raises if autogenerate would emit a change
+
+
+def test_profile_number_migration_converts_initials_and_downgrades():
+    cfg = Config(str(ALEMBIC_INI))
+    command.downgrade(cfg, "ship_activity_truncate")
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO profiles (display_name, initials, color, archived_at, created_at)"
+                    " VALUES ('Troisième', 'TR', '#000000', NULL, '2026-03-01'),"
+                    " ('Premier', 'PR', '#000000', now(), '2026-01-01'),"
+                    " ('Deuxième', 'DE', '#000000', NULL, '2026-02-01')"
+                )
+            )
+        command.upgrade(cfg, "head")
+        with engine.begin() as conn:
+            rows = conn.execute(text("SELECT display_name, number FROM profiles ORDER BY number"))
+            assert rows.all() == [("Premier", 1), ("Deuxième", 2), ("Troisième", 3)]
+            assert "initials" not in {c["name"] for c in inspect(conn).get_columns("profiles")}
+        insert = "INSERT INTO profiles (display_name, number, color) VALUES ('X', {n}, '#000000')"
+        for number in (2, 0, 1000):  # active duplicate, below and above the CHECK range
+            with pytest.raises(IntegrityError), engine.begin() as conn:
+                conn.execute(text(insert.format(n=number)))
+        with engine.begin() as conn:  # the archived profile's number 1 is free again
+            conn.execute(text(insert.format(n=1)))
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM profiles WHERE display_name = 'X'"))
+        command.downgrade(cfg, "ship_activity_truncate")
+        with engine.begin() as conn:
+            columns = {c["name"] for c in inspect(conn).get_columns("profiles")}
+            assert {"initials"} <= columns and "number" not in columns
+            initials = conn.execute(text("SELECT initials FROM profiles ORDER BY created_at"))
+            assert initials.scalars().all() == ["1", "2", "3"]
+    finally:
+        command.upgrade(cfg, "head")
 
 
 @pytest.mark.parametrize(

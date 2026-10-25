@@ -17,7 +17,7 @@ def at(day: int, hour: int = 12) -> datetime:
 @pytest.fixture
 def rows(db, profile_factory):
     """Six rows over three days: two profiles, three actions."""
-    a, b = profile_factory("Alice", "AL"), profile_factory("Bob", "BO", "#dc2626")
+    a, b = profile_factory("Alice"), profile_factory("Bob", color="#dc2626")
     spec = [
         (at(1), None, "login_success"),
         (at(1, 18), a.id, "form_create"),

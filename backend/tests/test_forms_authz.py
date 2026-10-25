@@ -30,7 +30,7 @@ def stored(db, form: dict) -> Form | None:
 def test_admin_writes_any_profiles_form_owner_unchanged_logged_as_admin(
     kind, db, make_client, admin_client, profile_factory
 ):
-    owner = profile_factory("A", "A")
+    owner = profile_factory("A")
     form = created(make_client("user", owner), publish(db))
     response = write(admin_client, form, kind)
     assert response.status_code == expected_status(kind), response.text
@@ -54,7 +54,7 @@ def test_admin_gets_403_on_create(db, admin_client):
 
 @pytest.mark.parametrize("kind", WRITES)
 def test_owner_writes_its_own_form(kind, db, make_client, profile_factory):
-    owner = profile_factory("A", "A")
+    owner = profile_factory("A")
     client = make_client("user", owner)
     form = created(client, publish(db))
     assert write(client, form, kind).status_code == expected_status(kind)
@@ -66,7 +66,7 @@ def test_owner_writes_its_own_form(kind, db, make_client, profile_factory):
 def test_profile_a_gets_403_on_b_then_succeeds_after_switching(
     kind, db, make_client, profile_factory
 ):
-    a, b = profile_factory("A", "A"), profile_factory("B", "B")
+    a, b = profile_factory("A"), profile_factory("B")
     form = created(make_client("user", b), publish(db))
     client = make_client("user", a)
     response = write(client, form, kind)

@@ -51,7 +51,7 @@ class FormUpdate(Strict):
 class OwnerOut(BaseModel):
     id: uuid.UUID
     display_name: str
-    initials: str
+    number: int
     color: str
     archived: bool  # True: show "Nom (profil supprimé)", the form is read-only for the user
 
