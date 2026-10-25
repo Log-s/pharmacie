@@ -29,8 +29,6 @@ services:
     secrets:
       - db_password
       - secret_key
-    volumes:
-      - annexes:/data/annexes
     networks:
       - front
       - back
@@ -65,7 +63,6 @@ networks:
 
 volumes:
   pgdata: {}
-  annexes: {}
   caddy_data: {}
   caddy_config: {}
 

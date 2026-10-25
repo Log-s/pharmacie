@@ -29,9 +29,9 @@
 	handle /api/* {
 		# Personal data and session-bound answers: never cached by the browser or a proxy.
 		header Cache-Control "no-store"
-		# Annex limit (ANNEX_MAX_BYTES, 20 MiB) plus multipart overhead; bigger bodies get 413 at the proxy.
+		# JSON bodies only (largest: a note, body_html <= 200 000 characters); bigger bodies get 413 at the proxy.
 		request_body {
-			max_size 21MB
+			max_size 1MB
 		}
 		reverse_proxy api:8000
 	}
