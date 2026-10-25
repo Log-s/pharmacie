@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>{{ css|safe }}</style>
+</head>
+<body>
+<h1>{{ title }}</h1>
+{% for item in items %}
+<h{{ item.level }}>{{ item.title }}</h{{ item.level }}>
+{{ item.html|safe }}
+{% endfor %}
+</body>
+</html>
