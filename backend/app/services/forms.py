@@ -96,7 +96,7 @@ def _summary(auth: Auth, form: Form, version: TemplateVersion, template: Templat
         owner=OwnerOut(
             id=owner.id,
             display_name=owner.display_name,
-            initials=owner.initials,
+            number=owner.number,
             color=owner.color,
             archived=owner.archived_at is not None,
         ),

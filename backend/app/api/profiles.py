@@ -46,7 +46,7 @@ def list_profiles(auth: CurrentAuth, db: Db, include_archived: bool = False) -> 
 def create_profile(body: ProfileIn, ctx: Ctx, db: Db) -> ProfileOut:
     profile = Profile(**body.model_dump())
     db.add(profile)
-    db.flush()
+    profiles.flush_unique_number(db, body.number)
     activity.log(db, ctx, "profile_create", "profile", profile.id, body.model_dump())
     db.commit()
     return ProfileOut.model_validate(profile)
@@ -58,6 +58,7 @@ def update_profile(profile_id: uuid.UUID, body: ProfileIn, ctx: Ctx, db: Db) -> 
     before = {k: getattr(profile, k) for k in ProfileIn.model_fields}
     for key, value in body.model_dump().items():
         setattr(profile, key, value)
+    profiles.flush_unique_number(db, body.number)
     activity.log(
         db,
         ctx,

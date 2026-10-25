@@ -42,10 +42,6 @@ def ask_password(label: str, path: str | None) -> str:
             return password
 
 
-def initials(name: str) -> str:
-    return "".join(word[0] for word in name.split()[:2]).upper() or "?"
-
-
 def install(args: argparse.Namespace) -> None:
     with SessionLocal() as db:
         if db.scalar(select(func.count()).select_from(Account)):
@@ -64,11 +60,7 @@ def install(args: argparse.Namespace) -> None:
             db.flush()
             db.add(Account(role="user", password_hash=passwords.hash_password(user)))
             if profile:
-                db.add(
-                    Profile(
-                        display_name=profile, initials=initials(profile), color=FIRST_PROFILE_COLOR
-                    )
-                )
+                db.add(Profile(display_name=profile, number=1, color=FIRST_PROFILE_COLOR))
     except IntegrityError:  # a concurrent install won the race on UNIQUE(role)
         sys.exit("L'instance est déjà installée : aucun compte n'a été créé.")
     print("Installation terminée : comptes admin et utilisateur créés.")

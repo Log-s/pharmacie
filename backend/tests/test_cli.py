@@ -47,7 +47,7 @@ def test_install_creates_both_accounts(password_file, db):
     assert passwords.verify_password(stored["admin"], PASSWORDS["admin"])
     assert passwords.verify_password(stored["user"], PASSWORDS["user"])
     profile = db.scalar(select(Profile))
-    assert (profile.display_name, profile.initials) == ("Marie Curie", "MC")
+    assert (profile.display_name, profile.number) == ("Marie Curie", 1)
 
 
 def test_install_without_profile_creates_none(password_file, db):
@@ -131,7 +131,7 @@ def test_install_interactive_prompts(monkeypatch, db, capsys):
     cli(["install"])
     assert "12 caractères" in capsys.readouterr().err
     assert passwords.verify_password(hashes(db)["admin"], PASSWORDS["admin"])
-    assert db.scalar(select(Profile.initials)) == "LP"
+    assert db.scalar(select(Profile.number)) == 1
 
 
 def test_reset_admin_password(password_file, accounts, db):

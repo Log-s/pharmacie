@@ -9,9 +9,11 @@ propriétaire de la fiche ne change pas.
 
 Le menu **Profils** liste les profils de l'équipe.
 
-- **Nouveau profil** : nom affiché (100 caractères au plus), initiales (3 caractères au plus) et
-  couleur. Le nom et les initiales apparaissent dans l'en-tête et sur les fiches.
-- **Modifier** : change le nom, les initiales ou la couleur. Les fiches existantes affichent les
+- **Nouveau profil** : nom affiché (100 caractères au plus), numéro (nombre entier de 1 à 999,
+  proposé automatiquement : le plus petit libre) et couleur. Le nom et le numéro apparaissent dans
+  l'en-tête et sur les fiches. Deux profils actifs ne peuvent pas avoir le même numéro ; un profil
+  archivé garde le sien, qu'un nouveau profil peut alors reprendre.
+- **Modifier** : change le nom, le numéro ou la couleur. Les fiches existantes affichent les
   nouvelles valeurs.
 - **Supprimer** : la fenêtre de confirmation indique combien de fiches sont liées au profil.
     - sans fiche : le profil est **supprimé définitivement** ;

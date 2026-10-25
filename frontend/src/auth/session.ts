@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { api, ApiError, meQueryKey, queryClient } from '@/lib/api'
 
 export type Role = 'admin' | 'user'
-export type ActiveProfile = { id: string; display_name: string; initials: string; color: string }
+export type ActiveProfile = { id: string; display_name: string; number: number; color: string }
 /** `GET /api/auth/me`; `null` in the cache means "not logged in". */
 export type Me = { role: Role; active_profile: ActiveProfile | null; csrf_token: string }
 

@@ -10,10 +10,10 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Spinner } from '@/components/ui/spinner'
-import { api, queryClient } from '@/lib/api'
-import { type Profile, type ProfileInput, profilesKey } from '@/profiles/api'
+import { api, ApiError, queryClient } from '@/lib/api'
+import { type Profile, type ProfileInput, profilesKey, useProfiles } from '@/profiles/api'
 
-// Palette of the register: distinct hues, each readable behind the initials (text stays foreground).
+// Palette of the register: distinct hues, each readable behind the number (text stays foreground).
 const PRESETS = [
   ['#2f855a', 'Vert'],
   ['#2b6cb0', 'Bleu'],
@@ -25,20 +25,31 @@ const PRESETS = [
   ['#4a5568', 'Ardoise'],
 ]
 
+const NUMBER_MESSAGE = 'Le numéro doit être un nombre entier de 1 à 999.'
+
 const schema = z.object({
   display_name: z.string().trim().min(1, 'Le nom affiché est obligatoire.').max(100, 'Le nom ne peut pas dépasser 100 caractères.'),
-  initials: z.string().trim().min(1, 'Les initiales sont obligatoires.').max(3, 'Les initiales comptent 3 caractères au plus.'),
+  number: z.string().trim().regex(/^\d{1,3}$/, NUMBER_MESSAGE).transform(Number).refine((n) => n >= 1, NUMBER_MESSAGE),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Choisissez une couleur.'),
 })
 
 type Errors = Partial<Record<keyof ProfileInput, string>>
-const FIELD_IDS = { display_name: 'profile-name', initials: 'profile-initials' }
+const FIELD_IDS = { display_name: 'profile-name', number: 'profile-number' }
+
+/** Smallest positive number no active profile holds (archived profiles do not block it). */
+const smallestFree = (profiles: Profile[]) => {
+  const taken = new Set(profiles.filter((p) => !p.archived_at).map((p) => p.number))
+  let n = 1
+  while (taken.has(n)) n++
+  return n
+}
 
 /** Create (no `profile`) or edit one profile; closes itself once saved. */
 export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: Profile; open: boolean; onOpenChange: (open: boolean) => void }) {
-  const [values, setValues] = useState<ProfileInput>({
+  const archived = useProfiles({ archived: true })
+  const [values, setValues] = useState({
     display_name: profile?.display_name ?? '',
-    initials: profile?.initials ?? '',
+    number: String(profile?.number ?? smallestFree(archived.data ?? [])),
     color: profile?.color ?? PRESETS[0][0],
   })
   const [errors, setErrors] = useState<Errors>({})
@@ -51,7 +62,8 @@ export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: P
       onOpenChange(false)
     },
     onError: (error) => {
-      const fields = fieldErrors(error)
+      // 409: the number belongs to another active profile.
+      const fields = error instanceof ApiError && error.status === 409 ? { number: error.message } : fieldErrors(error)
       if (Object.keys(fields).length) {
         setErrors(fields)
         focusFirstInvalid(fields, FIELD_IDS)
@@ -60,13 +72,13 @@ export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: P
     },
   })
 
-  const set = (key: keyof ProfileInput) => (value: string) => setValues((v) => ({ ...v, [key]: value }))
+  const set = (key: keyof typeof values) => (value: string) => setValues((v) => ({ ...v, [key]: value }))
   const submit = (event: React.FormEvent) => {
     event.preventDefault()
     const parsed = schema.safeParse(values)
     const found: Errors = {}
     if (!parsed.success) for (const issue of parsed.error.issues) found[issue.path[0] as keyof ProfileInput] ??= issue.message
-    for (const key of ['display_name', 'initials'] as const) if (hasUnstorable(values[key])) found[key] = UNSTORABLE_MESSAGE
+    if (hasUnstorable(values.display_name)) found.display_name = UNSTORABLE_MESSAGE
     setErrors(found)
     focusFirstInvalid(found, FIELD_IDS)
     if (parsed.success && !Object.keys(found).length) save.mutate(parsed.data)
@@ -78,7 +90,7 @@ export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: P
         <form onSubmit={submit} noValidate className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>{profile ? 'Modifier le profil' : 'Nouveau profil'}</DialogTitle>
-            <DialogDescription>Le nom et les initiales apparaissent dans l'en-tête et sur les fiches.</DialogDescription>
+            <DialogDescription>Le nom et le numéro apparaissent dans l'en-tête et sur les fiches.</DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field data-invalid={!!errors.display_name}>
@@ -86,11 +98,11 @@ export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: P
               <Input id="profile-name" name="display_name" autoComplete="off" value={values.display_name} onChange={(e) => set('display_name')(e.target.value)} aria-invalid={!!errors.display_name} aria-describedby={errors.display_name ? 'profile-name-error' : undefined} />
               {errors.display_name && <FieldError id="profile-name-error">{errors.display_name}</FieldError>}
             </Field>
-            <Field data-invalid={!!errors.initials}>
-              <FieldLabel htmlFor="profile-initials">Initiales</FieldLabel>
-              <Input id="profile-initials" name="initials" autoComplete="off" className="w-24" value={values.initials} onChange={(e) => set('initials')(e.target.value)} aria-invalid={!!errors.initials} aria-describedby={errors.initials ? 'profile-initials-error' : 'profile-initials-help'} />
-              <FieldDescription id="profile-initials-help">1 à 3 caractères.</FieldDescription>
-              {errors.initials && <FieldError id="profile-initials-error">{errors.initials}</FieldError>}
+            <Field data-invalid={!!errors.number}>
+              <FieldLabel htmlFor="profile-number">Numéro</FieldLabel>
+              <Input id="profile-number" name="number" inputMode="numeric" autoComplete="off" className="w-24 tabular-nums" value={values.number} onChange={(e) => set('number')(e.target.value)} aria-invalid={!!errors.number} aria-describedby={errors.number ? 'profile-number-error' : 'profile-number-help'} />
+              <FieldDescription id="profile-number-help">De 1 à 999, unique parmi les profils actifs.</FieldDescription>
+              {errors.number && <FieldError id="profile-number-error">{errors.number}</FieldError>}
             </Field>
             <Field data-invalid={!!errors.color}>
               <FieldLabel id="profile-color-label">Couleur</FieldLabel>
@@ -118,7 +130,7 @@ export function ProfileFormDialog({ profile, open, onOpenChange }: { profile?: P
             </Field>
             <div className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
               Aperçu
-              <Paraphe initials={values.initials.trim() || '··'} color={values.color} />
+              <Paraphe number={values.number.trim() || '···'} color={values.color} />
               <span className="truncate font-medium text-foreground">{values.display_name.trim() || 'Nom du profil'}</span>
             </div>
           </FieldGroup>

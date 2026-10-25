@@ -13,7 +13,7 @@ globalThis.ResizeObserver ??= class {
   disconnect() {}
 } as unknown as typeof ResizeObserver
 
-const user = (id: string): Me => ({ role: 'user', active_profile: { id, display_name: id === 'A' ? 'Alice Martin' : 'Bruno Petit', initials: id, color: '#3a7' }, csrf_token: 'csrf-user' })
+const user = (id: string): Me => ({ role: 'user', active_profile: { id, display_name: id === 'A' ? 'Alice Martin' : 'Bruno Petit', number: id === 'A' ? 1 : 2, color: '#3a7' }, csrf_token: 'csrf-user' })
 const admin: Me = { role: 'admin', active_profile: null, csrf_token: 'csrf-admin' }
 
 const REF_NODE = '00000000-0000-4000-8000-0000000000a1'
@@ -24,7 +24,7 @@ const tree = {
     { id: TEXT_NODE, type: 'text', label: 'Observation', required: false, help: null, annex_ref: null, multiline: false, max_length: null },
   ],
 }
-const owner = { id: 'A', display_name: 'Alice Martin', initials: 'AM', color: '#3a7', archived: false }
+const owner = { id: 'A', display_name: 'Alice Martin', number: 1, color: '#3a7', archived: false }
 const summary = (over: object = {}) => ({
   id: 'f1', reference: 'FIXME-000001', template_id: 't1', template_name: 'Contrôle', template_version_id: 'v1', version: 1,
   owner, created_at: '2026-10-20T10:00:00Z', updated_at: '2026-10-21T10:00:00Z', can_edit: true, ...over,

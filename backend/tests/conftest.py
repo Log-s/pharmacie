@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import func, select, text
 
 from app.cli import main as cli
 from app.db import SessionLocal, engine
@@ -119,12 +119,15 @@ def login():
 
 @pytest.fixture
 def profile_factory(db):
-    """profile_factory(display_name="Profil A", initials="PA", color="#2563eb", archived=False)"""
+    """profile_factory(display_name="Profil A", number=None, color="#2563eb", archived=False);
+    number defaults to one past the highest existing (archived profiles count)."""
 
-    def make(display_name="Profil A", initials="PA", color="#2563eb", archived=False) -> Profile:
+    def make(display_name="Profil A", number=None, color="#2563eb", archived=False) -> Profile:
+        if number is None:
+            number = (db.scalar(select(func.max(Profile.number))) or 0) + 1
         profile = Profile(
             display_name=display_name,
-            initials=initials,
+            number=number,
             color=color,
             archived_at=datetime.now(UTC) if archived else None,
         )

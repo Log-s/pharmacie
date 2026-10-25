@@ -54,7 +54,7 @@ const tree: TemplateTree = templateTree.parse({
   ],
 })
 
-const profile = { id: 'p1', display_name: 'Claire Martin', initials: 'CM', color: '#2f855a', archived_at: null }
+const profile = { id: 'p1', display_name: 'Claire Martin', number: 1, color: '#2f855a', archived_at: null }
 const me: Me = { role: 'user', active_profile: profile, csrf_token: 'csrf' }
 
 function renderForm(props: Partial<FormRendererProps> = {}) {
@@ -74,7 +74,7 @@ beforeEach(() => {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) =>
-      url === '/api/profiles' ? Response.json([profile, { ...profile, id: 'p2', display_name: 'Paul Roux', initials: 'PR' }]) : Response.json({ reference: 'FIXME-000042' }),
+      url === '/api/profiles' ? Response.json([profile, { ...profile, id: 'p2', display_name: 'Paul Roux', number: 2 }]) : Response.json({ reference: 'FIXME-000042' }),
     ),
   )
 })
