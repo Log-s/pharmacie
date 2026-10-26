@@ -101,8 +101,12 @@ def list_annexes(
 def export_pdf(_auth: CurrentAuth, db: Db, folder_id: uuid.UUID | None = None) -> Response:
     """Both roles. The folder's subtree, or the whole tree without `folder_id`."""
     folder = _folder(db, folder_id) if folder_id else None
+    try:
+        document = pdf.render(db, folder)
+    except RecursionError:  # a deeply nested note body overflows the HTML/PDF layout
+        raise HTTPException(422, "Une note est trop imbriquée pour être exportée en PDF.") from None
     return Response(
-        pdf.render(db, folder),
+        document,
         media_type="application/pdf",
         headers={
             "Content-Disposition": annexes.content_disposition(
