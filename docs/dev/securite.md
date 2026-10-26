@@ -2,9 +2,9 @@
 
 ## Transport et en-têtes
 
-- **HTTPS seul.** Caddy sert tout en HTTPS (`tls internal` : autorité interne, certificat pour
-  `SITE_HOST`) ; il n'y a pas d'écoute HTTP.
-- **En-têtes** (`Caddyfile`) : HSTS, CSP `default-src 'self'` (aucune ressource tierce ; styles
+- **HTTPS par nginx.** La pile n'écoute qu'en HTTP, sur `127.0.0.1:8080` par défaut ; nginx, sur
+  l'hôte, termine le TLS et ajoute HSTS ([Configurer nginx](deploiement.md#configurer-nginx)).
+- **En-têtes** (`Caddyfile`) : CSP `default-src 'self'` (aucune ressource tierce ; styles
   `'unsafe-inline'` seulement, pour les primitives Radix) avec `frame-ancestors 'none'`,
   `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`,
   `Permissions-Policy`, `Cross-Origin-Opener-Policy` et `Cross-Origin-Resource-Policy` en

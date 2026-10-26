@@ -2,7 +2,7 @@
 
 L'application s'ouvre dans un navigateur récent (Firefox, Chrome, Edge, Safari), sur un poste de
 travail ou une tablette. Votre administrateur vous donne son adresse, par exemple
-`https://interventions.officine.local:8443`.
+`https://interventions.officine.local`.
 
 ## Les deux comptes
 

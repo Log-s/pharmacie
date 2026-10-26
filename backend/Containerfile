@@ -29,5 +29,6 @@ COPY alembic ./alembic
 COPY app ./app
 USER 10001:10001
 EXPOSE 8000
-# Proxy headers are trusted from any peer: the api publishes no port, only Caddy reaches it.
+# Proxy headers are trusted from any peer: the api publishes no port, only Caddy reaches it
+# (Caddy keeps the X-Forwarded-* set by nginx, see Caddyfile).
 CMD ["sh", "-c", "python -m app.cli migrate && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips '*'"]

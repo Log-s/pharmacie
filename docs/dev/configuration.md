@@ -4,20 +4,22 @@
 
 | Fichier | Pour | Versionné |
 |---|---|---|
-| `.env` | variables de la pile lues par podman-compose (`SITE_HOST`, `HTTPS_PORT`, `HTTPS_BIND`) | non |
+| `Makefile` (en tête) | port et adresse d'écoute de la pile (`HTTP_PORT`, `HTTP_BIND`) | oui |
 | `compose.override.yaml` | réglages du service `api`, montages supplémentaires ; fusionné automatiquement avec `compose.yaml` | non |
 | `secrets/` | `db_password`, `secret_key` ([Infrastructure](infrastructure.md#secrets)) | non |
 | ligne de commande `make` | ports de développement, moteur de conteneurs | — |
 
 Après une modification, `make up` recrée les conteneurs concernés.
 
-## Pile (`.env`)
+## Pile (`Makefile`)
+
+Réglées en tête du `Makefile`, ou sur la ligne de commande (`make up HTTP_PORT=8081`). La pile
+n'écoute qu'en HTTP ; le HTTPS est assuré par nginx ([Déployer](deploiement.md#configurer-nginx)).
 
 | Variable | Défaut | Rôle |
 |---|---|---|
-| `SITE_HOST` | `localhost` | nom d'hôte servi par Caddy et inscrit dans le certificat ; doit correspondre à l'adresse tapée par les postes |
-| `HTTPS_PORT` | `8443` | port publié sur l'hôte (`make e2e` : 18443, `make smoke` : 18444) |
-| `HTTPS_BIND` | `0.0.0.0` | adresse d'écoute du port publié ; `127.0.0.1` pour une pile locale seulement |
+| `HTTP_PORT` | `8080` | port HTTP publié sur l'hôte (`make e2e` : 18080, `make smoke` : 18081) |
+| `HTTP_BIND` | `127.0.0.1` | adresse d'écoute du port publié ; nginx sur l'hôte s'y connecte |
 
 ## Application (service `api`)
 
@@ -69,4 +71,4 @@ les migrer.
 | `DOCS_PORT` | `8001` | port de `make docs-serve` |
 | `YES`, `DB` | — | arguments de `make restore` |
 
-Plusieurs copies du dépôt peuvent tourner en parallèle en changeant ces ports et `HTTPS_PORT`.
+Plusieurs copies du dépôt peuvent tourner en parallèle en changeant ces ports et `HTTP_PORT`.

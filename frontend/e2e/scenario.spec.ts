@@ -5,7 +5,7 @@ import { pdfHeadings } from './pdf.ts'
 
 // Specification §11 « E2E Playwright », one serial scenario on a fresh production stack (scripts/e2e.sh
 // has already run the non-interactive install). Admin and user keep their own browser context.
-const baseURL = process.env.E2E_BASE_URL ?? 'https://localhost:18443'
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:18080'
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? ''
 const USER_PASSWORD = process.env.E2E_USER_PASSWORD ?? ''
 const NEW_USER_PASSWORD = process.env.E2E_NEW_USER_PASSWORD ?? ''
@@ -28,7 +28,7 @@ let reference = ''
 let ficheUrl = ''
 
 async function open(browser: Browser) {
-  const context = await browser.newContext({ baseURL, ignoreHTTPSErrors: true })
+  const context = await browser.newContext({ baseURL })
   return { context, page: await context.newPage() }
 }
 

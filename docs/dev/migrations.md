@@ -30,7 +30,7 @@ Le conteneur `api` applique les migrations Alembic manquantes à chaque démarra
     ```sh
     make up                       # reconstruit les images, recrée les conteneurs, migre au démarrage
     podman-compose logs api | tail -20
-    curl -k https://<hôte>/api/health
+    curl https://<hôte>/api/health
     ```
 
 5. **Vérifiez** : connexion admin, une fiche, un export PDF, le journal.
@@ -104,14 +104,13 @@ Pour déplacer une instance (changement de machine, d'hébergeur) :
     make backup
     podman-compose stop proxy                 # plus aucun accès, donc plus aucune écriture
     make backup                               # sauvegarde finale, cohérente
-    podman volume export pharmacie_caddy_data > backups/caddy_data.tar   # garde l'autorité TLS
     ```
 
 2. **Copiez** sur le nouveau serveur, par un canal chiffré : la dernière paire
-   `db-*.dump`, `caddy_data.tar`, le dossier `secrets/` et `.env`.
+   `db-*.dump` et le dossier `secrets/` (ainsi que la configuration nginx et son certificat).
 
     ```sh
-    scp -r backups/db-<h>.dump backups/caddy_data.tar secrets .env \
+    scp -r backups/db-<h>.dump secrets \
       pharmacie@nouveau:~/transfert/
     ```
 
@@ -120,21 +119,15 @@ Pour déplacer une instance (changement de machine, d'hébergeur) :
 
     ```sh
     cd ~/pharmacie
-    cp -r ~/transfert/secrets ~/transfert/.env .
+    cp -r ~/transfert/secrets .
     chmod 700 secrets
-    podman volume create pharmacie_caddy_data
-    podman volume import pharmacie_caddy_data ~/transfert/caddy_data.tar
     make up
     make restore DB=~/transfert/db-<h>.dump
     ```
 
-4. **Basculez** le nom d'hôte (DNS) vers le nouveau serveur. Gardant `caddy_data`, les postes
-   reconnaissent déjà la racine du certificat. Vérifiez la connexion, une fiche, une annexe.
+4. **Basculez** le nom d'hôte (DNS) vers le nouveau serveur. Vérifiez la connexion, une fiche, une annexe.
 5. **Arrêtez l'ancien** une fois la bascule validée (`make down`), puis effacez ses données selon
    votre politique (elles contiennent des données personnelles).
-
-Si `SITE_HOST` change, Caddy émet un nouveau certificat avec la même racine : rien à faire sur les
-postes.
 
 ## Changer de version majeure de PostgreSQL
 

@@ -23,7 +23,7 @@ développement du front.
 
 ```sh
 make secrets   # crée secrets/db_password et secrets/secret_key s'ils n'existent pas
-make up        # construit et démarre proxy + api + db, puis https://localhost:8443
+make up        # construit et démarre proxy + api + db, puis http://localhost:8080 (HTTPS : nginx devant)
 make install   # crée les comptes admin et utilisateur (à faire une fois)
 make down      # arrête la pile
 ```

@@ -1,5 +1,7 @@
-# Host ports are env-configurable: HTTPS_PORT (default 8443, read by compose.yaml),
-# API_DEV_PORT / VITE_PORT (make dev). Runs on rootless podman + podman-compose.
+# Plain HTTP on HTTP_BIND:HTTP_PORT (make up); HTTPS is terminated by nginx in front.
+HTTP_PORT ?= 8080
+HTTP_BIND ?= 127.0.0.1
+# Other host ports: API_DEV_PORT / VITE_PORT (make dev). Runs on rootless podman + podman-compose.
 SHELL := /usr/bin/env bash
 .SHELLFLAGS := -ec
 COMPOSE ?= podman-compose
@@ -17,7 +19,7 @@ secrets: ## create secrets/* if missing
 	@scripts/make-secrets.sh
 
 up: secrets ## build and start proxy + api + db
-	$(COMPOSE) up -d --build
+	HTTP_PORT=$(HTTP_PORT) HTTP_BIND=$(HTTP_BIND) $(COMPOSE) up -d --build
 
 down:
 	$(COMPOSE) down
@@ -50,10 +52,10 @@ check: ## Gate 1: backend ruff + pytest, frontend lint + typecheck + vitest
 	npm --prefix frontend run typecheck
 	npm --prefix frontend run test -- --run
 
-e2e: ## Playwright §11 scenario on a throwaway production stack (HTTPS_PORT 18443)
+e2e: ## Playwright §11 scenario on a throwaway production stack (HTTP_PORT 18080)
 	COMPOSE='$(COMPOSE)' ENGINE='$(ENGINE)' scripts/e2e.sh
 
-smoke: ## production stack on a throwaway project (HTTPS_PORT 18444), health check, install
+smoke: ## production stack on a throwaway project (HTTP_PORT 18081), health check, install
 	COMPOSE='$(COMPOSE)' ENGINE='$(ENGINE)' scripts/e2e.sh smoke
 
 dev: secrets ## db + api (reload, port API_DEV_PORT) + vite dev server (port VITE_PORT, proxies /api)

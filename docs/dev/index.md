@@ -7,7 +7,7 @@ anglais, comme les commentaires du code.
 ## Vue d'ensemble
 
 ```
-navigateur ──HTTPS:${HTTPS_PORT:-8443}──> proxy (Caddy, tls internal, front compilé dans /srv)
+navigateur ──HTTPS──> nginx (hôte) ──HTTP:${HTTP_PORT:-8080}──> proxy (Caddy, front compilé dans /srv)
                                             │ /api/*            réseau « front »
                                             ▼
                                      api (FastAPI/uvicorn :8000, uid 10001)
@@ -21,7 +21,7 @@ non root (podman rootless) :
 
 | Service | Image | Rôle |
 |---|---|---|
-| `proxy` | `frontend/Containerfile` (Node pour compiler, puis Caddy 2.11) | TLS, en-têtes de sécurité, fichiers du front, relais de `/api/*` |
+| `proxy` | `frontend/Containerfile` (Node pour compiler, puis Caddy 2.11) | en-têtes de sécurité, fichiers du front, relais de `/api/*` |
 | `api` | `backend/Containerfile`, cible `runtime` (Python 3.12) | API REST, rendu PDF ; applique les migrations au démarrage |
 | `db` | `docker.io/library/postgres:16-alpine` | données ; joignable seulement depuis `api` |
 
@@ -61,7 +61,7 @@ frontend/
   DESIGN.md              jetons et conventions visuelles
 scripts/                 e2e, tests back, sauvegarde, restauration, audit, secrets
 compose.yaml             pile de production ; compose.test.yaml : pile de test jetable
-Caddyfile                TLS, en-têtes, limites, relais
+Caddyfile                en-têtes, limites, relais
 ```
 
 ## Principes

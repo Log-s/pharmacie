@@ -25,7 +25,7 @@ modules and their contracts. Written in English, like the code comments. The run
 - Frontend: React 18 + TS strict, Tailwind v4, shadcn (radix base, nova style, Geist via
   `@fontsource-variable`), oxlint (with jsx-a11y), Vitest + Testing Library, Playwright config in
   `frontend/playwright.config.ts` (suite in `frontend/e2e/`).
-- Env vars: `HTTPS_PORT` (8443), `SITE_HOST` (localhost), `API_DEV_PORT` (8000), `VITE_PORT` (5173),
+- Env vars: `HTTP_PORT` (8080), `HTTP_BIND` (127.0.0.1), `API_DEV_PORT` (8000), `VITE_PORT` (5173),
   `VITE_API_TARGET`; api: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `SECRET_KEY`
   (secrets come from `/run/secrets/<name>` when present).
 

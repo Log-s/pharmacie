@@ -35,21 +35,12 @@ dont podman a besoin. Vérifiez :
 podman info --format '{{.Host.Security.Rootless}}'   # true
 ```
 
-### Port HTTPS
+### Port HTTP
 
-Un utilisateur non root ne peut pas ouvrir les ports inférieurs à 1024. Deux possibilités :
-
-- **garder 8443** (défaut) : l'adresse sera `https://interventions.officine.local:8443` ;
-- **servir sur 443**, en abaissant le seuil des ports privilégiés (une fois, en root) :
-
-    ```sh
-    echo 'net.ipv4.ip_unprivileged_port_start=443' | sudo tee /etc/sysctl.d/90-unprivileged-443.conf
-    sudo sysctl --system
-    ```
-
-Ouvrez ce port dans le pare-feu, et seulement celui-là (par exemple
-`sudo firewall-cmd --permanent --add-port=443/tcp && sudo firewall-cmd --reload`, ou
-`sudo ufw allow 443/tcp`). L'application n'écoute pas en HTTP.
+La pile n'écoute qu'en HTTP, sur `HTTP_BIND:HTTP_PORT` (défaut `127.0.0.1:8080`, réglé en tête du
+`Makefile`). Le HTTPS est assuré par un **nginx** installé sur l'hôte, qui relaie vers ce port (voir
+[Configurer nginx](#configurer-nginx)). N'ouvrez dans le pare-feu que le port de nginx (443), pas
+celui de la pile.
 
 ## Installer
 
@@ -59,12 +50,8 @@ cd ~/pharmacie
 git checkout <version>            # un tag ou un commit validé par make e2e
 ```
 
-Créez `~/pharmacie/.env` (ignoré par git, lu par podman-compose) :
-
-```sh
-SITE_HOST=interventions.officine.local
-HTTPS_PORT=443
-```
+Pour changer le port ou l'adresse d'écoute, modifiez `HTTP_PORT` / `HTTP_BIND` en tête du `Makefile`
+ou passez-les à `make up` (`make up HTTP_PORT=8081`).
 
 Puis :
 
@@ -81,56 +68,43 @@ Vérifiez :
 
 ```sh
 podman-compose ps                                          # 3 conteneurs « Up », db « healthy »
-curl -k https://interventions.officine.local/api/health     # {"status":"ok"}
+curl http://127.0.0.1:8080/api/health                    # {"status":"ok"}
 ```
 
 !!! warning "Copiez les secrets hors de la machine"
     `secrets/db_password` et `secrets/secret_key` ne sont pas dans les sauvegardes. Rangez-en une
     copie avec les mots de passe admin et utilisateur, dans un coffre de mots de passe.
 
-## Faire confiance au certificat
+## Configurer nginx
 
-Caddy émet le certificat avec son autorité interne. Exportez la racine :
+nginx termine le TLS avec le certificat de votre choix et relaie tout vers la pile. Il doit
+**remplacer** `X-Forwarded-For` par l'adresse du client (pas l'ajouter) : l'api s'en sert pour
+limiter les tentatives de connexion par IP, et une valeur fournie par le client la contournerait.
 
-```sh
-podman-compose exec -T proxy cat /data/caddy/pki/authorities/local/root.crt > interventions-root.crt
+```nginx title="/etc/nginx/conf.d/interventions.conf"
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name interventions.officine.local;
+
+    ssl_certificate     /etc/nginx/certs/fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    client_max_body_size 1m;   # même limite que Caddy sur /api/*
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
-Puis installez `interventions-root.crt` sur chaque poste, comme autorité racine de confiance :
-
-| Système | Méthode |
-|---|---|
-| Windows | double-clic sur le fichier > Installer le certificat > Ordinateur local > « Autorités de certification racines de confiance » (ou par GPO pour tout le parc) |
-| macOS | Trousseaux d'accès > Système > importer, puis « Toujours approuver » |
-| Linux | copier dans `/usr/local/share/ca-certificates/` puis `sudo update-ca-certificates` (Debian/Ubuntu) ; `/etc/pki/ca-trust/source/anchors/` puis `sudo update-ca-trust` (Fedora/RHEL) |
-| Firefox | utilise son propre magasin : Paramètres > Vie privée et sécurité > Certificats > Importer, ou la stratégie d'entreprise `ImportEnterpriseRoots` |
-
-La racine est valable 10 ans ; Caddy renouvelle seul le certificat du site. Elle est stockée dans le
-volume `caddy_data` : si ce volume est perdu, une nouvelle racine est créée et il faut la
-redistribuer (voir [migrer vers un autre serveur](migrations.md#migrer-vers-un-autre-serveur) pour
-la conserver).
-
-### Utiliser un certificat de l'entreprise
-
-Si vous disposez d'un certificat émis par votre propre autorité, remplacez `tls internal` dans une
-copie locale du `Caddyfile` et montez-la par-dessus celui de l'image :
-
-```sh
-mkdir -p ~/pharmacie/certs && cp fullchain.pem privkey.pem ~/pharmacie/certs/
-podman unshare chown -R 10002:10002 ~/pharmacie/certs   # lisibles par l'uid de Caddy dans le conteneur
-sed 's#tls internal#tls /certs/fullchain.pem /certs/privkey.pem#' Caddyfile > Caddyfile.local
-```
-
-```yaml title="compose.override.yaml"
-services:
-  proxy:
-    volumes:
-      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro,z
-      - ./certs:/certs:ro,z
-```
-
-Puis `make up`. Pensez à reporter les changements du `Caddyfile` versionné dans votre copie lors
-des mises à jour.
+Les en-têtes de sécurité (CSP, `X-Frame-Options`…) viennent de Caddy ; HSTS est à la charge de
+nginx. Le cookie de session est `Secure` : l'application ne fonctionne qu'en HTTPS derrière nginx
+(ou sur `http://localhost` en local).
 
 ## Démarrage automatique
 
@@ -143,7 +117,7 @@ systemctl --user enable --now podman-restart.service
 ```
 
 Avec le *linger* activé à l'étape 1, la pile repart au démarrage sans que personne ne se connecte.
-Testez une fois : `sudo reboot`, puis `curl -k https://<hôte>/api/health`.
+Testez une fois : `sudo reboot`, puis `curl https://<hôte>/api/health`.
 
 ## Avant d'ouvrir à l'équipe
 
@@ -152,6 +126,6 @@ Testez une fois : `sudo reboot`, puis `curl -k https://<hôte>/api/health`.
 - [ ] une restauration a été essayée sur une pile de test ([Sauvegarde et restauration](backup-restore.md)) ;
 - [ ] les secrets et mots de passe sont rangés hors de la machine ;
 - [ ] `make audit` ne remonte rien de bloquant ;
-- [ ] la racine du certificat est installée sur les postes ;
+- [ ] nginx sert l'application en HTTPS avec un certificat reconnu par les postes ;
 - [ ] l'administrateur a créé les profils et publié au moins un template
   ([guide utilisateur](../user/administration.md)).

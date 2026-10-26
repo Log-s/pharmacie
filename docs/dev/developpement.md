@@ -61,15 +61,15 @@ complétée pour toute nouvelle route.
 
 ### Tests de bout en bout
 
-`scripts/e2e.sh` lance la pile de production (`compose.yaml`, Caddy en HTTPS) sous un nom de projet
+`scripts/e2e.sh` lance la pile de production (`compose.yaml`, Caddy en HTTP) sous un nom de projet
 unique (`pharmacie-e2e-<pid>`), avec des volumes neufs et des secrets et mots de passe générés dans
 un dossier temporaire privé. Il exécute `python -m app.cli install` sans interaction (un second
 `install` doit échouer), puis Playwright dans `mcr.microsoft.com/playwright:v1.64.1-noble`
 (`--network host`, `--userns=keep-id` pour que le rapport appartienne à votre utilisateur) sur
-`https://localhost:18443`. La pile, ses volumes et ses images sont supprimés à la fin, même en cas
+`http://localhost:18080`. La pile, ses volumes et ses images sont supprimés à la fin, même en cas
 d'échec.
 
-Rapport : `frontend/playwright-report/index.html`. Port : `make e2e HTTPS_PORT=19443`.
+Rapport : `frontend/playwright-report/index.html`. Port : `make e2e HTTP_PORT=19080`.
 
 Le scénario (`frontend/e2e/scenario.spec.ts`) suit la spécification §11 : connexion admin, profils,
 dossier, sous-dossier et note d'annexe (gras, souligné), template avec sous-champ conditionnel lié à

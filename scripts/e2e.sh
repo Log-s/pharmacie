@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Fresh production stack (compose.yaml, Caddy HTTPS) on a unique project, then:
-#   scripts/e2e.sh        install + the Playwright §11 scenario (HTTPS_PORT 18443)
-#   scripts/e2e.sh smoke  install + health check only (HTTPS_PORT 18444)
-# Env: COMPOSE (default podman-compose), ENGINE (default podman), HTTPS_PORT. Secrets and passwords
+# Fresh production stack (compose.yaml, Caddy over plain HTTP) on a unique project, then:
+#   scripts/e2e.sh        install + the Playwright §11 scenario (HTTP_PORT 18080)
+#   scripts/e2e.sh smoke  install + health check only (HTTP_PORT 18081)
+# Env: COMPOSE (default podman-compose), ENGINE (default podman), HTTP_PORT. Secrets and passwords
 # live in a private temp dir; the stack, its volumes and its images are removed on exit, also on failure.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 mode="${1:-e2e}"
-export HTTPS_PORT="${HTTPS_PORT:-$([ "$mode" = smoke ] && echo 18444 || echo 18443)}"
+export HTTP_PORT="${HTTP_PORT:-$([ "$mode" = smoke ] && echo 18081 || echo 18080)}"
 project="pharmacie-$mode-$$"
 read -ra compose <<<"${COMPOSE:-podman-compose}"
 engine="${ENGINE:-podman}"
@@ -20,7 +20,7 @@ E2E_ADMIN_PASSWORD="$(<"$tmp/admin_password")"
 E2E_USER_PASSWORD="$(<"$tmp/user_password")"
 E2E_NEW_USER_PASSWORD="$(rand)"
 export E2E_ADMIN_PASSWORD E2E_USER_PASSWORD E2E_NEW_USER_PASSWORD
-export HTTPS_BIND=127.0.0.1 # throwaway proxy: loopback only
+export HTTP_BIND=127.0.0.1 # throwaway proxy: loopback only
 cat >"$tmp/override.yaml" <<YAML
 services:
   api:
@@ -41,12 +41,12 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 "${compose[@]}" up -d --build
-url="https://localhost:$HTTPS_PORT"
+url="http://localhost:$HTTP_PORT"
 for _ in $(seq 120); do
-  curl -ksf "$url/api/health" >/dev/null && break
+  curl -sf "$url/api/health" >/dev/null && break
   sleep 1
 done
-curl -ksf -w ' -> HTTP %{http_code}\n' "$url/api/health"
+curl -sf -w ' -> HTTP %{http_code}\n' "$url/api/health"
 
 install=("${compose[@]}" run --rm api python -m app.cli install
   --admin-password-file /run/secrets/admin_password --user-password-file /run/secrets/user_password)

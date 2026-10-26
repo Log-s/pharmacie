@@ -54,7 +54,7 @@ La restauration **remplace** la base de la pile ciblée.
    ```sh
    podman-compose exec -T db psql -U pharmacie pharmacie -c \
      "SELECT (SELECT count(*) FROM accounts) AS accounts, (SELECT count(*) FROM activity_log) AS journal"
-   curl -k https://localhost:8443/api/health
+   curl http://localhost:8080/api/health
    ```
 
    puis connectez-vous en admin et ouvrez le journal et une note des annexes.

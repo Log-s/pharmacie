@@ -21,10 +21,10 @@ l'utilisateur hôte (`/etc/subuid`). Aucun démon, aucun privilège root sur l'h
 - Image construite par `frontend/Containerfile` depuis la racine du dépôt (fichier d'exclusion
   `.containerignore`) : étape Node 24 qui compile le front (`npm ci && npm run build`), puis
   Caddy 2.11 avec le `Caddyfile` et le front dans `/srv`.
-- Écoute **8443** dans le conteneur, publié sur `${HTTPS_BIND:-0.0.0.0}:${HTTPS_PORT:-8443}`. Pas
-  d'écoute HTTP : aucune redirection, aucun port 80.
-- TLS : `tls internal`, autorité interne de Caddy, certificat pour `SITE_HOST`. La racine et les
-  certificats vivent dans le volume `caddy_data`.
+- Écoute **8080** en HTTP dans le conteneur, publié sur `${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8080}`
+  (`make up` les prend en tête du `Makefile`). Pas de TLS : nginx, sur l'hôte, termine le HTTPS
+  et relaie vers ce port. Caddy conserve les `X-Forwarded-*` venus d'une adresse privée
+  (`trusted_proxies static private_ranges`).
 - Relais de `/api/*` vers `api:8000` ; corps de requête limité à 21 MB sur `/api/*` ; `/` sert le
   front avec repli sur `index.html`.
 
@@ -67,8 +67,6 @@ podman-compose préfixe les volumes par le nom du projet (par défaut le nom du 
 | Volume | Contenu | Sauvegardé par `make backup` |
 |---|---|---|
 | `pgdata` | base PostgreSQL | oui (`pg_dump`) |
-| `caddy_data` | autorité interne, certificats | non : régénérée si perdue (les postes devront approuver la nouvelle racine) |
-| `caddy_config` | configuration auto-sauvegardée de Caddy | non |
 
 ```sh
 podman volume ls --filter name=pharmacie
@@ -107,6 +105,6 @@ neuve.
 | `compose.yaml` | pile de production |
 | `compose.test.yaml` | base jetable + image de test du back-end (`scripts/test-backend.sh`) |
 | `compose.override.yaml` | facultatif, non versionné : réglages locaux, chargé automatiquement par podman-compose |
-| `Caddyfile` | TLS, en-têtes, limites, relais |
+| `Caddyfile` | en-têtes, limites, relais |
 | `Makefile` | point d'entrée de toutes les opérations (chaque cible est commentée par `##`) |
 | `scripts/` | e2e, tests, sauvegarde, restauration, audit, secrets |

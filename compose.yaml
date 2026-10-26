@@ -4,13 +4,8 @@ services:
     build:
       context: .
       dockerfile: frontend/Containerfile
-    environment:
-      SITE_HOST: ${SITE_HOST:-localhost}
     ports:
-      - "${HTTPS_BIND:-0.0.0.0}:${HTTPS_PORT:-8443}:8443"
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8080}:8080"
     networks:
       - front
     depends_on:
@@ -63,8 +58,6 @@ networks:
 
 volumes:
   pgdata: {}
-  caddy_data: {}
-  caddy_config: {}
 
 secrets:
   db_password:

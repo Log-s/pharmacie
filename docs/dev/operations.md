@@ -8,7 +8,7 @@ Toutes les commandes se lancent sous l'utilisateur de la pile, depuis le dossier
 |---|---|
 | état des conteneurs | `podman-compose ps` |
 | journaux en direct | `podman-compose logs -f api` (ou `proxy`, `db`) |
-| santé | `curl -k https://<hôte>/api/health` → `{"status":"ok"}` |
+| santé | `curl https://<hôte>/api/health` → `{"status":"ok"}` |
 | démarrer / reconstruire | `make up` |
 | arrêter | `make down` (les volumes, donc les données, sont conservés) |
 | redémarrer un service | `podman-compose restart api` |

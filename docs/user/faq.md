@@ -2,10 +2,9 @@
 
 ## Le navigateur affiche un avertissement de sécurité
 
-Le certificat HTTPS de l'application est émis par une autorité interne, que les navigateurs ne
-connaissent pas. Votre administrateur peut installer cette autorité sur les postes une fois pour
-toutes (voir [Déployer en production](../dev/deploiement.md#faire-confiance-au-certificat)) ;
-l'avertissement disparaît alors.
+Le certificat HTTPS de l'application n'est pas reconnu par ce poste (souvent un certificat émis par
+une autorité interne). Votre administrateur peut installer cette autorité sur les postes une fois
+pour toutes ; l'avertissement disparaît alors.
 
 Ne contournez pas l'avertissement sur une adresse que vous ne reconnaissez pas.
 

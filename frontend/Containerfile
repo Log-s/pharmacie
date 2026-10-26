@@ -11,4 +11,4 @@ COPY Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /src/dist /srv
 RUN chown -R 10002:10002 /data /config
 USER 10002:10002
-EXPOSE 8443
+EXPOSE 8080
