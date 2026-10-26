@@ -202,6 +202,11 @@ def test_generic_attributes_are_stripped_from_every_tag(admin_client, db):
         assert set(stored_both_ways(admin_client, db, body)) == {expected}
 
 
+def test_ol_keeps_start_and_nothing_else(admin_client, db):
+    body = '<ol start="3" type="a" class="c" title="t"><li>x</li></ol>'
+    assert set(stored_both_ways(admin_client, db, body)) == {'<ol start="3"><li>x</li></ol>'}
+
+
 def test_relative_scheme_relative_and_fragment_hrefs_are_removed(admin_client, db):
     for href in ("/x", "//evil.example/x", "#frag"):
         for html in stored_both_ways(admin_client, db, f'<a href="{href}">l</a>'):
