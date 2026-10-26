@@ -16,7 +16,8 @@ export const useAnnexTree = () => useQuery({ queryKey: [...annexesKey, 'tree'], 
 export const useAnnexSearch = (q: string) =>
   useQuery({ queryKey: [...annexesKey, 'search', q], queryFn: () => api<NoteItem[]>(`/annexes?q=${encodeURIComponent(q)}`), enabled: !!q })
 
-export const useNote = (id: string) => useQuery({ queryKey: [...annexesKey, id], queryFn: () => api<Note>(`/annexes/${id}`), staleTime: 60_000 })
+export const useNote = (id: string | undefined) =>
+  useQuery({ queryKey: [...annexesKey, id], queryFn: () => api<Note>(`/annexes/${id}`), staleTime: 60_000, enabled: !!id })
 
 /** PDF of a folder's subtree; the whole tree when no folder is given. */
 export const annexExportUrl = (folderId?: string | null) => `/api/annexes/export.pdf${folderId ? `?folder_id=${folderId}` : ''}`

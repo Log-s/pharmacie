@@ -34,7 +34,7 @@ const extensions = [
 export default function NoteEditorPage() {
   const { id } = useParams()
   const [params] = useSearchParams()
-  const note = useNote(id ?? '')
+  const note = useNote(id)
 
   if (!id) return <NoteEditor key="new" folderId={params.get('dossier')} />
   if (note.isPending) return <Skeleton className="h-64 w-full max-w-3xl" aria-busy="true" aria-label="Chargement de la note…" />
