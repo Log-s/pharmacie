@@ -133,3 +133,6 @@ def test_a_too_deeply_nested_note_is_a_422_not_a_500(admin_client, monkeypatch):
     assert response.status_code == 422
     assert response.json()["detail"] == "Une note est trop imbriquée pour être exportée en PDF."
 
+
+def test_anonymous_gets_401(client):
+    assert export(client).status_code == 401
