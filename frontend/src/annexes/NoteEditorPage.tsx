@@ -25,6 +25,7 @@ const SAFE_LINK = /^(https?:|mailto:)/i
 
 const extensions = [
   StarterKit.configure({
+    heading: { levels: [1, 2, 3] }, // the server keeps h1-h3 only
     link: { openOnClick: false, autolink: true, protocols: ['mailto'], isAllowedUri: (url) => SAFE_LINK.test(url) },
   }),
 ]
