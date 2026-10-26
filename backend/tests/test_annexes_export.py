@@ -122,3 +122,17 @@ def test_user_can_export(admin_client, user_client):
     make_note(admin_client, "Note", "<p>x</p>", folder["id"])
     assert outline(read(export(user_client, folder["id"])))[0] == (1, "Protocoles")
     assert outline(read(export(user_client)))[0] == (1, "Annexes")
+
+
+def test_a_too_deeply_nested_note_is_a_422_not_a_500(admin_client, monkeypatch):
+    def overflow(*_):
+        raise RecursionError
+
+    monkeypatch.setattr("app.pdf.annexes.render", overflow)
+    response = export(admin_client)
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Une note est trop imbriquée pour être exportée en PDF."
+
+
+def test_anonymous_gets_401(client):
+    assert export(client).status_code == 401

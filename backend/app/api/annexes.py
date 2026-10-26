@@ -4,7 +4,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse, Response
 from pydantic import AfterValidator
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import defer
 
 from app.api.deps import CurrentAuth, Db, get_request_ctx, require_admin
@@ -27,6 +27,8 @@ from app.services.activity import RequestCtx
 # Mounted under /api in app/main.py; declare full paths below it (e.g. "/annexes/...").
 # Serves /annexes (notes) and /annex-folders.
 router = APIRouter(tags=["annexes"])
+
+ANNEX_MOVE_LOCK = 0x616E6E78  # arbitrary advisory-lock key for folder moves
 
 Ctx = Annotated[RequestCtx, Depends(get_request_ctx)]
 
@@ -99,8 +101,12 @@ def list_annexes(
 def export_pdf(_auth: CurrentAuth, db: Db, folder_id: uuid.UUID | None = None) -> Response:
     """Both roles. The folder's subtree, or the whole tree without `folder_id`."""
     folder = _folder(db, folder_id) if folder_id else None
+    try:
+        document = pdf.render(db, folder)
+    except RecursionError:  # a deeply nested note body overflows the HTML/PDF layout
+        raise HTTPException(422, "Une note est trop imbriquée pour être exportée en PDF.") from None
     return Response(
-        pdf.render(db, folder),
+        document,
         media_type="application/pdf",
         headers={
             "Content-Disposition": annexes.content_disposition(
@@ -177,6 +183,8 @@ def update_folder(db: Db, ctx: Ctx, folder_id: uuid.UUID, body: FolderUpdate) ->
     parent_id = changes.get("parent_id")
     if parent_id is not None:
         _folder(db, parent_id)
+        # Serialise moves until commit: two concurrent ones could both pass the check and loop.
+        db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": ANNEX_MOVE_LOCK})
         if annexes.would_cycle(db, folder_id, parent_id):
             raise HTTPException(
                 422, "Un dossier ne peut pas être déplacé dans lui-même ni dans un sous-dossier."

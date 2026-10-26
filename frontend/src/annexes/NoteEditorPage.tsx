@@ -25,6 +25,7 @@ const SAFE_LINK = /^(https?:|mailto:)/i
 
 const extensions = [
   StarterKit.configure({
+    heading: { levels: [1, 2, 3] }, // the server keeps h1-h3 only
     link: { openOnClick: false, autolink: true, protocols: ['mailto'], isAllowedUri: (url) => SAFE_LINK.test(url) },
   }),
 ]
@@ -33,7 +34,7 @@ const extensions = [
 export default function NoteEditorPage() {
   const { id } = useParams()
   const [params] = useSearchParams()
-  const note = useNote(id ?? '')
+  const note = useNote(id)
 
   if (!id) return <NoteEditor key="new" folderId={params.get('dossier')} />
   if (note.isPending) return <Skeleton className="h-64 w-full max-w-3xl" aria-busy="true" aria-label="Chargement de la note…" />
