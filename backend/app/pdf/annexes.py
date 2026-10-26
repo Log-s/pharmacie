@@ -30,8 +30,13 @@ def render(db: Session, folder: AnnexFolder | None) -> bytes:
     for n in db.scalars(select(Annex)):
         notes[n.folder_id].append(n)
 
+    seen: set[uuid.UUID | None] = set()
+
     def build(folder_id: uuid.UUID | None, level: int) -> list[dict[str, Any]]:
         """Notes of the folder, then of its sub-folders; a sub-tree without any note yields []."""
+        if folder_id in seen:  # a cycle in the data must not loop forever
+            return []
+        seen.add(folder_id)
         items: list[dict[str, Any]] = []
         for child in sorted(sub[folder_id], key=lambda f: f.name.casefold()):
             if inner := build(child.id, min(level + 1, 6)):

@@ -38,7 +38,8 @@ export function indexTree({ folders, notes }: Tree) {
     /** Folders from the root down to `id` (empty for the root). */
     path(id: string | null) {
       const chain: Folder[] = []
-      for (let folder = id ? byId.get(id) : undefined; folder; folder = folder.parent_id ? byId.get(folder.parent_id) : undefined) chain.unshift(folder)
+      for (let folder = id ? byId.get(id) : undefined; folder && !chain.includes(folder); folder = folder.parent_id ? byId.get(folder.parent_id) : undefined)
+        chain.unshift(folder)
       return chain
     },
     /** Every folder below `id`, `id` excluded. */
@@ -47,6 +48,7 @@ export function indexTree({ folders, notes }: Tree) {
       const todo = [id]
       for (let next = todo.pop(); next; next = todo.pop())
         for (const child of subfolders.get(next) ?? []) {
+          if (found.has(child.id)) continue
           found.add(child.id)
           todo.push(child.id)
         }
